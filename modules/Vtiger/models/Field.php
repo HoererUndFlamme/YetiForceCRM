@@ -695,6 +695,8 @@ class Vtiger_Field_Model extends vtlib\Field
 			case 'multipicklist':
 			case 'multiowner':
 			case 'multiReferenceValue':
+			case 'inventoryLimit':
+			case 'languages':
 			case 'posList':
 				$pickListValues = $this->getPicklistValues();
 				if (!empty($pickListValues)) {
@@ -707,14 +709,6 @@ class Vtiger_Field_Model extends vtlib\Field
 				$taxs = $this->getUITypeModel()->getTaxes();
 				if (!empty($taxs)) {
 					$this->fieldInfo['picklistvalues'] = $taxs;
-				} else {
-					$this->fieldInfo['picklistvalues'] = [];
-				}
-				break;
-			case 'inventoryLimit':
-				$limits = $this->getUITypeModel()->getLimits();
-				if (!empty($limits)) {
-					$this->fieldInfo['picklistvalues'] = $limits;
 				} else {
 					$this->fieldInfo['picklistvalues'] = [];
 				}
@@ -762,6 +756,7 @@ class Vtiger_Field_Model extends vtlib\Field
 				}
 				$this->fieldInfo['picklistvalues'] = $modulesList;
 				break;
+			case 'categoryMultipicklist':
 			case 'tree':
 				$tree = $this->getUITypeModel()->getAllValue();
 				$pickListValues = [];

@@ -57,12 +57,18 @@ class QueryGenerator
 	 */
 	private $entityModel;
 
+	/**
+	 * QueryGenerator construct
+	 * @param string $moduleName
+	 * @param mixed $userId
+	 */
 	public function __construct($moduleName, $userId = false)
 	{
 		$this->moduleName = $moduleName;
 		$this->query = new \App\Db\Query();
 		$this->moduleModel = \Vtiger_Module_Model::getInstance($moduleName);
 		$this->entityModel = \CRMEntity::getInstance($moduleName);
+		$this->user = User::getUserModel($userId ? $userId : User::getCurrentUserId());
 	}
 
 	/**
@@ -84,6 +90,52 @@ class QueryGenerator
 	}
 
 	/**
+	 * Get query fields
+	 * @return array
+	 */
+	public function getFields()
+	{
+		return $this->fields;
+	}
+
+	/**
+	 * Set query fields
+	 * @param type $fields
+	 */
+	public function setFields($fields)
+	{
+		$this->fields = $fields;
+	}
+
+	/**
+	 * Set query field
+	 * @param type $fields
+	 */
+	public function setField($fields)
+	{
+		$this->fields[] = $fields;
+	}
+
+	/**
+	 * Load base module list fields
+	 */
+	public function loadListFields()
+	{
+		$listFields = $this->entityModel->list_fields_name;
+		$listFields[] = 'id';
+		$this->fields = $listFields;
+	}
+
+	/**
+	 * Set custom column
+	 * @param type $columns
+	 */
+	public function setCustomColumn($columns)
+	{
+		$this->customColumns[] = $columns;
+	}
+
+	/**
 	 * Get CRMEntity Model
 	 * @return \CRMEntity
 	 */
@@ -92,6 +144,11 @@ class QueryGenerator
 		return $this->entityModel;
 	}
 
+	/**
+	 * Get reference fields
+	 * @param string $fieldName
+	 * @return array
+	 */
 	public function getReference($fieldName)
 	{
 		return $this->referenceFields[$fieldName];
@@ -186,6 +243,45 @@ class QueryGenerator
 	}
 
 	/**
+	 * Get default custom view query
+	 * @return \App\Db\Query
+	 */
+	public function getDefaultCustomViewQuery()
+	{
+		$customView = new CustomView($this->moduleName, $this->user);
+		$viewId = $customView->getViewId();
+		if (empty($viewId) || $viewId === 0) {
+			return false;
+		}
+		return $this->getCustomViewQueryById($viewId);
+	}
+
+	/**
+	 * Init function for default custom view
+	 */
+	public function initForDefaultCustomView($noCache = false)
+	{
+		$customView = new CustomView($this->moduleName, $this->user);
+		$viewId = $customView->getViewId($noCache);
+		if (empty($viewId) || $viewId === 0) {
+			return false;
+		}
+		$this->initForCustomViewById($viewId);
+		return true;
+	}
+
+	/**
+	 * Get custom view query by id
+	 * @param string|int $viewId
+	 * @return \App\Db\Query
+	 */
+	public function getCustomViewQueryById($viewId)
+	{
+		$this->initForCustomViewById($viewId);
+		return $this->createQuery();
+	}
+
+	/**
 	 * Fix date time value
 	 * @param string $fieldName
 	 * @param string $value
@@ -215,7 +311,7 @@ class QueryGenerator
 	public function initForCustomViewById($viewId)
 	{
 		$this->fields[] = 'id';
-		$customView = new CustomView($this->moduleName);
+		$customView = new CustomView($this->moduleName, $this->user);
 		$this->cvColumns = $customView->getColumnsListByCvid($viewId);
 		if ($this->cvColumns) {
 			foreach ($this->cvColumns as &$cvColumn) {
@@ -268,98 +364,12 @@ class QueryGenerator
 		}
 		foreach ($this->advFilterList as $group => &$filters) {
 			$functionName = ($group === 'and' ? 'addAndCondition' : 'addOrCondition');
-			$nativeFunctionName = $functionName . 'Native';
 			foreach ($filters as &$filter) {
 				list ($tableName, $columnName, $fieldName, $moduleFieldLabel, $fieldType) = explode(':', $filter['columnname']);
-				// For Events "End Date & Time" field datatype should be DT. But, db will give D for due_date field
-				if ($fieldName === 'due_date' && $moduleFieldLabel === 'Events_End_Date_&_Time') {
-					$fieldType = 'DT';
-				}
 				if (empty($fieldName) && $columnName === 'crmid' && $tableName === 'vtiger_crmentity') {
 					$columnName = $this->getColumnName('id');
 				}
-				if (($fieldType === 'D' || $fieldType === 'DT') && in_array($filter['comparator'], CustomView::STD_FILTER_CONDITIONS)) {
-					$filter['stdfilter'] = $filter['comparator'];
-					$valueComponents = explode(',', $filter['value']);
-					if ($filter['comparator'] === 'custom') {
-						if ($fieldType === 'DT') {
-							$startDateTimeComponents = explode(' ', $valueComponents[0]);
-							$endDateTimeComponents = explode(' ', $valueComponents[1]);
-							$filter['startdate'] = \DateTimeField::convertToDBFormat($startDateTimeComponents[0]);
-							$filter['enddate'] = \DateTimeField::convertToDBFormat($endDateTimeComponents[0]);
-						} else {
-							$filter['startdate'] = \DateTimeField::convertToDBFormat($valueComponents[0]);
-							$filter['enddate'] = \DateTimeField::convertToDBFormat($valueComponents[1]);
-						}
-					}
-					$dateFilterResolvedList = CustomView::resolveDateFilterValue($filter);
-					// If datatype is DT then we should append time also
-					if ($fieldType === 'DT') {
-						list ($startDate, $startTime) = explode(' ', $dateFilterResolvedList['startdate']);
-						if (empty($startTime)) {
-							$startTime = '00:00:00';
-						}
-						$dateFilterResolvedList['startdate'] = "$startDate $startTime";
-						list ($endDate, $endTime) = explode(' ', $dateFilterResolvedList['enddate']);
-						if (empty($endTime)) {
-							$endTime = '23:59:59';
-						}
-						$dateFilterResolvedList['enddate'] = "$endDate $endTime";
-					}
-					$this->$nativeFunctionName([
-						'between',
-						"$tableName.$columnName",
-						$this->fixDateTimeValue($columnName, $dateFilterResolvedList['startdate']),
-						$this->fixDateTimeValue($columnName, $dateFilterResolvedList['enddate'], false)
-					]);
-				} elseif ($fieldType === 'DT' && ($filter['comparator'] === 'e' || $filter['comparator'] === 'n')) {
-					$filter['stdfilter'] = $filter['comparator'];
-					$dateTimeComponents = explode(' ', $filter['value']);
-					$filter['startdate'] = \DateTimeField::convertToDBFormat($dateTimeComponents[0]);
-					$filter['enddate'] = \DateTimeField::convertToDBFormat($dateTimeComponents[0]);
-					$startDate = $this->fixDateTimeValue($columnName, $filter['startdate']);
-					$endDate = $this->fixDateTimeValue($columnName, $filter['enddate'], false);
-					$start = explode(' ', $startDate);
-					if (empty($start[1])) {
-						$startDate = "$start[0] 00:00:00";
-					}
-					$end = explode(' ', $endDate);
-					if (empty($end[1])) {
-						$endDate = "$end[0] 23:59:59";
-					}
-					if ($filter['comparator'] === 'n') {
-						$this->$nativeFunctionName([
-							'not between',
-							$columnName,
-							$startDate,
-							$endDate
-						]);
-					} else {
-						$this->$nativeFunctionName([
-							'between',
-							"$tableName.$columnName",
-							$this->fixDateTimeValue($columnName, $startDate),
-							$this->fixDateTimeValue($columnName, $endDate)
-						]);
-					}
-				} elseif ($fieldType === 'DT' && ($filter['comparator'] === 'a' || $filter['comparator'] === 'b')) {
-					$dateTime = explode(' ', $filter['value']);
-					$date = \DateTimeField::convertToDBFormat($dateTime[0]);
-					$value = [];
-					$value[] = $this->fixDateTimeValue($columnName, $date, false);
-					// Still fixDateTimeValue returns only date value, we need to append time because it is DT type
-					$countValue = count($value);
-					for ($i = 0; $i < $countValue; $i++) {
-						$values = explode(' ', $value[$i]);
-						if ($values[1] == '') {
-							$values[1] = '00:00:00';
-						}
-						$value[$i] = $values[0] . ' ' . $values[1];
-					}
-					$this->$functionName($fieldName, $value, $filter['comparator']);
-				} else {
-					$this->$functionName($fieldName, $filter['value'], $filter['comparator']);
-				}
+				$this->$functionName($fieldName, $filter['value'], $filter['comparator']);
 			}
 		}
 	}
