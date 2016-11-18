@@ -68,7 +68,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		//To keep the reference fieldname and record value in the url if it is direct relation
 		if ($relationModel->isDirectRelation()) {
 			$relationField = $relationModel->getRelationField();
-			$createViewUrl .='&' . $relationField->getName() . '=' . $parentRecordModule->getId();
+			$createViewUrl .= '&' . $relationField->getName() . '=' . $parentRecordModule->getId();
 		}
 		return $createViewUrl;
 	}
@@ -86,7 +86,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		//To keep the reference fieldname and record value in the url if it is direct relation
 		if ($relationModel->isDirectRelation()) {
 			$relationField = $relationModel->getRelationField();
-			$createViewUrl .='&' . $relationField->getName() . '=' . $parentRecordModule->getId();
+			$createViewUrl .= '&' . $relationField->getName() . '=' . $parentRecordModule->getId();
 		}
 		return $createViewUrl;
 	}
@@ -104,7 +104,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		//To keep the reference fieldname and record value in the url if it is direct relation
 		if ($relationModel->isDirectRelation()) {
 			$relationField = $relationModel->getRelationField();
-			$createViewUrl .='&' . $relationField->getName() . '=' . $parentRecordModule->getId();
+			$createViewUrl .= '&' . $relationField->getName() . '=' . $parentRecordModule->getId();
 		}
 		return $createViewUrl;
 	}
@@ -258,13 +258,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
 		if (!empty($searchKey)) {
-			$queryGenerator->addUserSearchConditions(
-				[
-					'search_field' => $searchKey,
-					'search_text' => $searchValue,
-					'operator' => $operator
-				]
-			);
+			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 		$this->set('query_generator', $queryGenerator);
 	}
@@ -397,10 +391,12 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 			$record->setId($row['crmid']);
 			$relatedRecordList[$row['crmid']] = $record;
 		}
-		$pagingModel->calculatePageRange($relatedRecordList);
-		$nextLimitQuery = $query. " LIMIT " . ($startIndex + $pageLimit) . ' OFFSET 1';
+
+		$nextLimitQuery = $query . " LIMIT " . ($startIndex + $pageLimit) . ' OFFSET 1';
 		$nextPageLimitResult = $db->query($nextLimitQuery);
-		if ($db->num_rows($nextPageLimitResult) > 0) {
+		$count = $db->num_rows($nextPageLimitResult);
+		$pagingModel->calculatePageRange($count);
+		if ($count > 0) {
 			$pagingModel->set('nextPageExists', true);
 		} else {
 			$pagingModel->set('nextPageExists', false);

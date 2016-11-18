@@ -608,21 +608,17 @@ class Vtiger_Field_Model extends vtlib\Field
 		$fieldName = $this->get('name');
 		$fieldLabel = $this->get('label');
 		$typeOfData = $this->get('typeofdata');
-
 		$fieldTypeOfData = explode('~', $typeOfData);
 		$fieldType = $fieldTypeOfData[0];
-
 		//Special condition need for reference field as they should be treated as string field
-		if ($this->getFieldDataType() == 'reference') {
+		if ($this->getFieldDataType() === 'reference') {
 			$fieldType = 'V';
 		} else {
 			$fieldType = \vtlib\Functions::transformFieldTypeOfData($tableName, $columnName, $fieldType);
 		}
-
 		$escapedFieldLabel = str_replace(' ', '_', $fieldLabel);
-		$moduleFieldLabel = $moduleName . '_' . $escapedFieldLabel;
-
-		return $tableName . ':' . $columnName . ':' . $fieldName . ':' . $moduleFieldLabel . ':' . $fieldType;
+		$moduleFieldLabel = "{$moduleName}_{$escapedFieldLabel}";
+		return "$tableName:$columnName:$fieldName:$moduleFieldLabel:$fieldType";
 	}
 
 	/**
@@ -697,18 +693,12 @@ class Vtiger_Field_Model extends vtlib\Field
 			case 'multiReferenceValue':
 			case 'inventoryLimit':
 			case 'languages':
+			case 'currencyList':
+			case 'taxes':
 			case 'posList':
 				$pickListValues = $this->getPicklistValues();
 				if (!empty($pickListValues)) {
 					$this->fieldInfo['picklistvalues'] = $pickListValues;
-				} else {
-					$this->fieldInfo['picklistvalues'] = [];
-				}
-				break;
-			case 'taxes':
-				$taxs = $this->getUITypeModel()->getTaxes();
-				if (!empty($taxs)) {
-					$this->fieldInfo['picklistvalues'] = $taxs;
 				} else {
 					$this->fieldInfo['picklistvalues'] = [];
 				}
@@ -1005,15 +995,19 @@ class Vtiger_Field_Model extends vtlib\Field
 
 	/**
 	 * Function returns list of Currencies available in the system
-	 * @return <Array>
+	 * @return array
 	 */
 	public function getCurrencyList()
 	{
+		if (\App\Cache::has('Currency', 'List')) {
+			return \App\Cache::get('Currency', 'List');
+		}
 		$currencies = (new \App\Db\Query())->select('id, currency_name')
 				->from('vtiger_currency_info')
 				->where(['currency_status' => 'Active', 'deleted' => 0])
 				->createCommand()->queryAllByGroup();
 		asort($currencies);
+		\App\Cache::save('Currency', 'List', $currencies, \App\Cache::LONG);
 		return $currencies;
 	}
 
@@ -1124,9 +1118,13 @@ class Vtiger_Field_Model extends vtlib\Field
 
 	/**
 	 * Function which will check if empty piclist option should be given
+	 * @return boolean
 	 */
 	public function isEmptyPicklistOptionAllowed()
 	{
+		if (method_exists($this->getUITypeModel(), 'isEmptyPicklistOptionAllowed')) {
+			return $this->getUITypeModel()->isEmptyPicklistOptionAllowed();
+		}
 		return true;
 	}
 

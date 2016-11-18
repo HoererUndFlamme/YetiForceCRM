@@ -233,21 +233,19 @@ class QueryGenerator
 
 	public function getDefaultCustomViewQuery()
 	{
-		$customView = new CustomView($this->module);
-		$viewId = $customView->getViewId($this->module);
+		$viewId = App\CustomView::getInstance($this->module)->getViewId();
 		return $this->getCustomViewQueryById($viewId);
 	}
 
 	public function initForDefaultCustomView()
 	{
-		$customView = new CustomView($this->module);
-		$viewId = $customView->getViewId($this->module);
+		$viewId = App\CustomView::getInstance($this->module)->getViewId();
 		$this->initForCustomViewById($viewId);
 	}
 
 	public function initForCustomViewById($viewId)
 	{
-		$customView = new CustomView($this->module);
+		$customView = App\CustomView::getInstance($this->module);
 		$this->customViewColumnList = $customView->getColumnsListByCvid($viewId);
 		if ($this->customViewColumnList) {
 			foreach ($this->customViewColumnList as $customViewColumnInfo) {
@@ -1035,7 +1033,7 @@ class QueryGenerator
 			if (in_array($field->getFieldDataType(), $commaSeparatedFieldTypes)) {
 				$valueArray = explode(',', $value);
 				if ($field->getFieldDataType() == 'multipicklist' && in_array($operator, ['e', 'n'])) {
-					$valueArray = \App\QueryConditionParser::getCombinations($valueArray);
+					$valueArray = \App\QueryFieldCondition\BaseFieldParser::getCombinations($valueArray);
 					foreach ($valueArray as $key => $value) {
 						$valueArray[$key] = ltrim($value, ' |##| ');
 					}

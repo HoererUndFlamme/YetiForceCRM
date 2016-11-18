@@ -180,9 +180,6 @@ class Vtiger_Module_Model extends \vtlib\Module
 		$focus->newRecord = $recordModel->get('newRecord');
 		$focus->save($moduleName);
 		$recordModel->setData($focus->column_fields)->setId($focus->id)->setEntity($focus);
-		if ($recordModel->has('shownerid')) {
-			Users_Privileges_Model::setSharedOwner($recordModel);
-		}
 		return $recordModel;
 	}
 
@@ -422,6 +419,7 @@ class Vtiger_Module_Model extends \vtlib\Module
 				}
 			}
 		}
+		$recordInstance->setFullForm(false);
 		return $recordInstance->setData($valueArray)->setModuleFromInstance($this)->setRawData($rawData);
 	}
 
@@ -1247,7 +1245,7 @@ class Vtiger_Module_Model extends \vtlib\Module
 			$activities[] = $model;
 		}
 
-		$pagingModel->calculatePageRange($activities);
+		$pagingModel->calculatePageRange($numOfRows);
 		if ($numOfRows > $pagingModel->getPageLimit()) {
 			array_pop($activities);
 			$pagingModel->set('nextPageExists', true);

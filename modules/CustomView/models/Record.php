@@ -266,7 +266,7 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
 		if (!empty($searchValue)) {
-			$queryGenerator->addUserSearchConditions(array('search_field' => $searchKey, 'search_text' => $searchValue, 'operator' => $operator));
+			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 
 		$searchParams = $this->get('search_params');
@@ -640,7 +640,7 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 
 	/**
 	 * Function to get the list of advanced filter conditions for the current custom view
-	 * @return <Array> - All the advanced filter conditions for the custom view, grouped by the condition grouping
+	 * @return array - All the advanced filter conditions for the custom view, grouped by the condition grouping
 	 */
 	public function getAdvancedCriteria()
 	{
@@ -666,7 +666,7 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 						inner join vtiger_cvadvfilter on vtiger_cvadvfilter.cvid = vtiger_customview.cvid
 						left join vtiger_cvadvfilter_grouping on vtiger_cvadvfilter.cvid = vtiger_cvadvfilter_grouping.cvid
 								and vtiger_cvadvfilter.groupid = vtiger_cvadvfilter_grouping.groupid';
-			$ssql .= " where vtiger_customview.cvid = ? && vtiger_cvadvfilter.groupid = ? order by vtiger_cvadvfilter.columnindex";
+			$ssql .= " where vtiger_customview.cvid = ? AND vtiger_cvadvfilter.groupid = ? order by vtiger_cvadvfilter.columnindex";
 
 			$result = $db->pquery($ssql, array($this->getId(), $groupId));
 			$noOfColumns = $db->num_rows($result);
@@ -1077,31 +1077,9 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 		$result = $db->pquery($query, array($module));
 		$viewId = $db->query_result($result, 0, 'cvid');
 		if (!$viewId) {
-			$customView = new CustomView($module);
-			$viewId = $customView->getViewId($module);
+			$viewId = App\CustomView::getInstance($module)->getViewId();
 		}
 		return self::getInstanceById($viewId);
-	}
-
-	protected static $moduleViewIdCache = false;
-
-	public static function getViewId(Vtiger_Request $request)
-	{
-		if (self::$moduleViewIdCache) {
-			return self::$moduleViewIdCache;
-		}
-		$moduleName = $request->getModule();
-		$viewName = $request->get('viewname');
-		if (empty($viewName)) {
-			//If not view name exits then get it from custom view
-			//This can return default view id or view id present in session
-			$customView = new CustomView();
-			$viewName = $customView->getViewId($moduleName);
-		} elseif ($viewName == 'All') {
-			$viewName = (new App\Db\Query())->select('cvid')->from('vtiger_customview')->where(['presence' => 0, 'entitytype' => $moduleName])->scalar();
-		}
-		self::$moduleViewIdCache = $viewName;
-		return $viewName;
 	}
 
 	public function getSortOrderBy($name = '')

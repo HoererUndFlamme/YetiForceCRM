@@ -223,28 +223,36 @@ class CustomView
 		return false;
 	}
 
-	private $moduleName;
-	private $user;
-	private $defaultViewId;
-	private $cvStatus;
-	private $cvUserId;
-
 	/**
-	 * CustomView construct
+	 * Static Function to get the Instance of CustomView
 	 * @param string $moduleName
 	 * @param mixed $user
+	 * @return \self
 	 */
-	public function __construct($moduleName, $user = false)
+	public static function getInstance($moduleName, $user = false)
 	{
-		$this->moduleName = $moduleName;
 		if (!$user) {
 			$user = User::getCurrentUserId();
 		}
 		if (is_numeric($user)) {
 			$user = User::getUserModel($user);
 		}
-		$this->user = $user;
+		$cacheName = $moduleName . '.' . $user->getUserId();
+		if (\App\Cache::staticHas('AppCustomView', $cacheName)) {
+			return \App\Cache::staticGet('App\CustomView', $cacheName);
+		}
+		$instance = new self();
+		$instance->moduleName = $moduleName;
+		$instance->user = $user;
+		\App\Cache::staticGet('App\CustomView', $cacheName, $instance);
+		return $instance;
 	}
+
+	private $moduleName;
+	private $user;
+	private $defaultViewId;
+	private $cvStatus;
+	private $cvUserId;
 
 	/**
 	 * Get custom view from file
@@ -452,13 +460,14 @@ class CustomView
 		} else {
 			$viewId = \AppRequest::get('viewname');
 			if (!is_numeric($viewId)) {
-				$viewId = $this->getViewIdByName($viewId);
-				if (!$viewId) {
-					$viewId = $this->getDefaultCvId($this->moduleName);
+				if ($viewId === 'All') {
+					$viewId = (new Db\Query())->select('cvid')->from('vtiger_customview')->where(['presence' => 0, 'entitytype' => $this->moduleName])->scalar();
+				} else {
+					$viewId = $this->getViewIdByName($viewId);
 				}
-			}
-			if (!$this->isPermittedCustomView($viewId)) {
-				$viewId = 0;
+				if (!$viewId) {
+					$viewId = $this->getDefaultCvId();
+				}
 			}
 		}
 		return $viewId;

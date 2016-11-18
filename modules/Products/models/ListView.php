@@ -42,7 +42,7 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
 		if (!empty($searchKey)) {
-			$queryGenerator->addUserSearchConditions(array('search_field' => $searchKey, 'search_text' => $searchValue, 'operator' => $operator));
+			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 
 
@@ -156,9 +156,10 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 
 		$listViewRecordModels = [];
 		$listViewEntries = $listViewContoller->getListViewRecords($moduleFocus, $moduleName, $listResult);
-		$pagingModel->calculatePageRange($listViewEntries);
+		$count = $db->num_rows($listResult);
+		$pagingModel->calculatePageRange($count);
 
-		if ($db->num_rows($listResult) > $pageLimit && $sourceModule !== 'PriceBooks' && $sourceField !== 'priceBookRelatedList') {
+		if ($count > $pageLimit && $sourceModule !== 'PriceBooks' && $sourceField !== 'priceBookRelatedList') {
 			array_pop($listViewEntries);
 			$pagingModel->set('nextPageExists', true);
 		} else {
@@ -228,7 +229,7 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
 		if (!empty($searchKey)) {
-			$queryGenerator->addUserSearchConditions(array('search_field' => $searchKey, 'search_text' => $searchValue, 'operator' => $operator));
+			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 
 		$listQuery = $this->getQuery();

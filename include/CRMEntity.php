@@ -126,6 +126,9 @@ class CRMEntity
 			}
 		}
 
+		if (isset($columnFields['shownerid'])) {
+			Users_Privileges_Model::setSharedOwner($this->column_fields['shownerid'], $this->id);
+		}
 		if ($this->isInventory === true && !empty($this->inventoryData)) {
 			$this->saveInventoryData($module);
 		}
@@ -162,13 +165,14 @@ class CRMEntity
 		\App\Log::trace("Entering into uploadAndSaveFile($id,$module,$file_details) method.");
 
 		$adb = PearDatabase::getInstance();
-		$current_user = vglobal('current_user');
-		$date_var = date('Y-m-d H:i:s');
+		$db = \App\Db::getInstance();
+		$userId = \App\User::getCurrentUserId();
+		$date = date('Y-m-d H:i:s');
 
 		//to get the owner id
 		$ownerid = $this->column_fields['assigned_user_id'];
-		if (!isset($ownerid) || $ownerid == '')
-			$ownerid = $current_user->id;
+		if (!isset($ownerid) || $ownerid === '')
+			$ownerid = $userId;
 
 		if (isset($file_details['original_name']) && $file_details['original_name'] != null) {
 			$file_name = $file_details['original_name'];
@@ -182,7 +186,7 @@ class CRMEntity
 		}
 		$binFile = \App\Fields\File::sanitizeUploadFileName($file_name);
 
-		$current_id = $adb->getUniqueID('vtiger_crmentity');
+		$currentId = $db->getUniqueID('vtiger_crmentity');
 
 		$filename = ltrim(basename(' ' . $binFile)); //allowed filename like UTF-8 characters
 		$filetype = $file_details['type'];
@@ -193,33 +197,33 @@ class CRMEntity
 		$upload_file_path = \vtlib\Functions::initStorageFileDirectory($module);
 
 		//upload the file in server
-		$upload_status = move_uploaded_file($filetmp_name, $upload_file_path . $current_id . '_' . $binFile);
+		$upload_status = move_uploaded_file($filetmp_name, $upload_file_path . $currentId . '_' . $binFile);
 		if ($upload_status == 'true') {
 			//This is only to update the attached filename in the vtiger_notes vtiger_table for the Notes module
 			$params = [
-				'crmid' => $current_id,
-				'smcreatorid' => $current_user->id,
+				'crmid' => $currentId,
+				'smcreatorid' => $userId,
 				'smownerid' => $ownerid,
 				'setype' => $module . " Image",
 				'description' => $this->column_fields['description'],
-				'createdtime' => $adb->formatDate($date_var, true),
-				'modifiedtime' => $adb->formatDate($date_var, true)
+				'createdtime' => $adb->formatDate($date, true),
+				'modifiedtime' => $adb->formatDate($date, true)
 			];
 			if ($module == 'Contacts' || $module == 'Products') {
 				$params['setype'] = $module . ' Image';
 			} else {
 				$params['setype'] = $module . ' Attachment';
 			}
-			$adb->insert('vtiger_crmentity', $params);
+			$db->createCommand()->insert('vtiger_crmentity', $params)->execute();
 
 			$params = [
-				'attachmentsid' => $current_id,
+				'attachmentsid' => $currentId,
 				'name' => $filename,
 				'description' => $this->column_fields['description'],
 				'type' => $filetype,
 				'path' => $upload_file_path
 			];
-			$adb->insert('vtiger_attachments', $params);
+			$db->createCommand()->insert('vtiger_attachments', $params)->execute();
 
 			if (AppRequest::get('mode') == 'edit') {
 				if ($id != '' && AppRequest::get('fileid') != '') {
@@ -237,12 +241,12 @@ class CRMEntity
 				if ($attachmentsid != '') {
 					$adb->delete('vtiger_seattachmentsrel', 'crmid = ? && attachmentsid = ?', [$id, $attachmentsid]);
 					$adb->delete('vtiger_crmentity', 'crmid = ?', [$attachmentsid]);
-					$adb->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $current_id]);
+					$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
 				} else {
-					$adb->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $current_id]);
+					$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
 				}
 			} else {
-				$adb->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $current_id]);
+				$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
 			}
 
 			return true;
@@ -681,6 +685,13 @@ class CRMEntity
 					}
 					if ($showsAdditionalLabels && in_array($fieldInfo['uitype'], [52, 53])) {
 						$this->column_fields[$fieldInfo['fieldname'] . '_label'] = vtlib\Functions::getOwnerRecordLabel($fieldvalue);
+					}
+					if ($fieldInfo['uitype'] === 120) {
+						$query = (new \App\Db\Query())->select('userid')->from('u_#__crmentity_showners')->where(['crmid' => $record])->distinct();
+						$fieldvalue = $query->column();
+						if (is_array($fieldvalue)) {
+							$fieldvalue = implode(',', $fieldvalue);
+						}
 					}
 					$this->column_fields[$fieldInfo['fieldname']] = $fieldvalue;
 				}
