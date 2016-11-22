@@ -143,4 +143,23 @@ class ReferenceField extends BaseField
 				['<>', $this->getColumnName(), 0]
 		];
 	}
+
+	/**
+	 * Get order by
+	 * @return array
+	 */
+	public function getOrderBy($order = false)
+	{
+		$condition = [];
+		if ($order && strtoupper($order) === 'DESC') {
+			foreach ($this->getRelatedTableName() as $formattedName) {
+				$condition[(string) $formattedName] = SORT_DESC;
+			}
+		} else {
+			foreach ($this->getRelatedTableName() as $formattedName) {
+				$condition[(string) $formattedName] = SORT_ASC;
+			}
+		}
+		return $condition;
+	}
 }

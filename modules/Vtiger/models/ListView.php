@@ -25,6 +25,54 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 	}
 
 	/**
+	 * Static Function to get the Instance of Vtiger ListView model for a given module and custom view
+	 * @param string $moduleName - Module Name
+	 * @param int $viewId - Custom View Id
+	 * @return Vtiger_ListView_Model instance
+	 */
+	public static function getInstance($moduleName, $viewId = 0)
+	{
+		$cacheName = $viewId . ':' . $moduleName;
+		if (\App\Cache::staticHas('ListView_Model', $cacheName)) {
+			return \App\Cache::staticGet('ListView_Model', $cacheName);
+		}
+		$modelClassName = Vtiger_Loader::getComponentClassName('Model', 'ListView', $moduleName);
+		$instance = new $modelClassName();
+		$moduleModel = Vtiger_Module_Model::getInstance($moduleName);
+		$queryGenerator = new \App\QueryGenerator($moduleModel->get('name'));
+		if (!empty($viewId) && $viewId != 0) {
+			$queryGenerator->initForCustomViewById($viewId);
+		} else {
+			if (!$queryGenerator->initForDefaultCustomView()) {
+				$queryGenerator->loadListFields();
+			}
+		}
+		$instance->set('module', $moduleModel)->set('query_generator', $queryGenerator);
+		\App\Cache::staticGet('ListView_Model', $cacheName, $instance);
+		return $instance;
+	}
+
+	/**
+	 * Static Function to get the Instance of Vtiger ListView model for a given module and custom view
+	 * @param string $value - Module Name
+	 * @return Vtiger_ListView_Model instance
+	 */
+	public static function getInstanceForPopup($value, $sourceModule = false)
+	{
+		$modelClassName = Vtiger_Loader::getComponentClassName('Model', 'ListView', $value);
+		$instance = new $modelClassName();
+		$moduleModel = Vtiger_Module_Model::getInstance($value);
+		$queryGenerator = new \App\QueryGenerator($moduleModel->get('name'));
+		if (!$sourceModule && !empty($sourceModule)) {
+			$moduleModel->set('sourceModule', $sourceModule);
+		}
+		$listFields = $moduleModel->getPopupViewFieldsList($sourceModule);
+		$listFields[] = 'id';
+		$queryGenerator->setFields($listFields);
+		return $instance->set('module', $moduleModel)->set('query_generator', $queryGenerator);
+	}
+
+	/**
 	 * Function to get the Quick Links for the List view of the module
 	 * @param array $linkParams
 	 * @return array List of Vtiger_Link_Model instances
@@ -116,7 +164,6 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 		$currentUser = Users_Record_Model::getCurrentUserModel();
 		$moduleModel = $this->getModule();
 		$links = Vtiger_Link_Model::getAllByType($moduleModel->getId(), ['LISTVIEWMASSACTION'], $linkParams);
-
 		$massActionLinks = [];
 		if ($moduleModel->isPermitted('MassEdit')) {
 			$massActionLinks[] = array(
@@ -134,7 +181,6 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 				'linkicon' => ''
 			);
 		}
-
 		$modCommentsModel = Vtiger_Module_Model::getInstance('ModComments');
 		if ($moduleModel->isCommentEnabled() && $modCommentsModel->isPermitted('EditView') && $moduleModel->isPermitted('MassAddComment')) {
 			$massActionLinks[] = array(
@@ -161,7 +207,6 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 				'linkicon' => ''
 			];
 		}
-
 		foreach ($massActionLinks as $massActionLink) {
 			$links['LISTVIEWMASSACTION'][] = Vtiger_Link_Model::getInstanceFromValues($massActionLink);
 		}
@@ -200,31 +245,30 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 
 	/**
 	 * Load list view conditions
-	 * @param string $moduleName
 	 */
-	public function loadListViewCondition($moduleName)
+	public function loadListViewCondition()
 	{
 		$queryGenerator = $this->get('query_generator');
 		$srcRecord = $this->get('src_record');
-		if ($moduleName === $this->get('src_module') && !empty($srcRecord)) {
+		if ($this->getModule()->get('name') === $this->get('src_module') && !empty($srcRecord)) {
 			$queryGenerator->addAndCondition('id', $srcRecord, 'n');
 		}
 		$searchParams = $this->get('search_params');
-		if (!empty($searchParams)) {
+		if (!$searchParams) {
 			$queryGenerator->parseAdvFilter($searchParams);
 		}
 		$searchKey = $this->get('search_key');
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
-		if (!empty($searchKey)) {
+		if (!$searchKey) {
 			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 		$searchResult = $this->get('searchResult');
-		if (!empty($searchResult) && is_array($searchResult)) {
+		if (!$searchResult && is_array($searchResult)) {
 			$queryGenerator->addAndConditionNative(['vtiger_crmentity.crmid' => $searchResult]);
 		}
 		$sourceModule = $this->get('src_module');
-		if (!empty($sourceModule)) {
+		if (!$sourceModule) {
 			$moduleModel = $this->getModule();
 			if (method_exists($moduleModel, 'getQueryByModuleField')) {
 				$moduleModel->getQueryByModuleField($sourceModule, $this->get('src_field'), $this->get('src_record'), $queryGenerator);
@@ -243,14 +287,10 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 	public function getListViewEntries(Vtiger_Paging_Model $pagingModel)
 	{
 		$moduleModel = $this->getModule();
-		$moduleName = $moduleModel->get('name');
-
-		$this->loadListViewCondition($moduleName);
+		$this->loadListViewCondition();
 		$this->loadListViewOrderBy();
-
 		$pageLimit = $pagingModel->getPageLimit();
-		$queryGenerator = $this->get('query_generator');
-		$query = $queryGenerator->createQuery();
+		$query = $this->get('query_generator')->createQuery();
 		if ($pagingModel->get('limit') !== 'no_limit') {
 			$query->limit($pageLimit + 1)->offset($pagingModel->getStartIndex());
 		}
@@ -266,7 +306,7 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 		$listViewRecordModels = [];
 		foreach ($rows as &$row) {
 			$recordModel = $moduleModel->getRecordFromArray($row);
-			$recordModel->colorList = Settings_DataAccess_Module_Model::executeColorListHandlers($moduleName, $row['id'], $recordModel);
+			$recordModel->colorList = Settings_DataAccess_Module_Model::executeColorListHandlers($moduleModel->get('name'), $row['id'], $recordModel);
 			$listViewRecordModels[$row['id']] = $recordModel;
 		}
 		unset($rows);
@@ -281,63 +321,14 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 	 */
 	public function getListViewCount()
 	{
-		$queryGenerator = $this->get('query_generator');
-		return $queryGenerator->createQuery()->count();
+		$this->loadListViewCondition();
+		return $this->get('query_generator')->createQuery()->count();
 	}
 
 	/**
-	 * Static Function to get the Instance of Vtiger ListView model for a given module and custom view
-	 * @param string $moduleName - Module Name
-	 * @param int $viewId - Custom View Id
-	 * @return Vtiger_ListView_Model instance
-	 */
-	public static function getInstance($moduleName, $viewId = 0)
-	{
-		$cacheName = $viewId . ':' . $moduleName;
-		if (\App\Cache::staticHas('ListView_Model', $cacheName)) {
-			return \App\Cache::staticGet('ListView_Model', $cacheName);
-		}
-		$db = PearDatabase::getInstance();
-		$modelClassName = Vtiger_Loader::getComponentClassName('Model', 'ListView', $moduleName);
-		$instance = new $modelClassName();
-		$moduleModel = Vtiger_Module_Model::getInstance($moduleName);
-		$queryGenerator = new \App\QueryGenerator($moduleModel->get('name'));
-		if (!empty($viewId) && $viewId != 0) {
-			$queryGenerator->initForCustomViewById($viewId);
-		} else {
-			if (!$queryGenerator->initForDefaultCustomView()) {
-				$queryGenerator->loadListFields();
-			}
-		}
-		$instance->set('module', $moduleModel)->set('query_generator', $queryGenerator);
-		\App\Cache::staticGet('ListView_Model', $cacheName, $instance);
-		return $instance;
-	}
-
-	/**
-	 * Static Function to get the Instance of Vtiger ListView model for a given module and custom view
-	 * @param string $value - Module Name
-	 * @return Vtiger_ListView_Model instance
-	 */
-	public static function getInstanceForPopup($value, $sourceModule = false)
-	{
-		$modelClassName = Vtiger_Loader::getComponentClassName('Model', 'ListView', $value);
-		$instance = new $modelClassName();
-		$moduleModel = Vtiger_Module_Model::getInstance($value);
-		$queryGenerator = new \App\QueryGenerator($moduleModel->get('name'));
-		if (!$sourceModule && !empty($sourceModule)) {
-			$moduleModel->set('sourceModule', $sourceModule);
-		}
-		$listFields = $moduleModel->getPopupViewFieldsList($sourceModule);
-		$listFields[] = 'id';
-		$queryGenerator->setFields($listFields);
-		return $instance->set('module', $moduleModel)->set('query_generator', $queryGenerator);
-	}
-	/*
 	 * Function to give advance links of a module
-	 * 	@RETURN array of advanced links
+	 * @return array of advanced links
 	 */
-
 	public function getAdvancedLinks()
 	{
 		$moduleModel = $this->getModule();
@@ -404,11 +395,11 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 		}
 		return $advancedLinks;
 	}
-	/*
+
+	/**
 	 * Function to get Basic links
 	 * @return array of Basic links
 	 */
-
 	public function getBasicLinks()
 	{
 		$basicLinks = [];
@@ -445,12 +436,9 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 	public function extendPopupFields($fieldsList)
 	{
 		$moduleModel = $this->get('module');
-		$queryGenerator = $this->get('query_generator');
-
 		$listFields = $moduleModel->getPopupViewFieldsList();
-
 		$listFields[] = 'id';
 		$listFields = array_merge($listFields, $fieldsList);
-		$queryGenerator->setFields($listFields);
+		$this->get('query_generator')->setFields($listFields);
 	}
 }

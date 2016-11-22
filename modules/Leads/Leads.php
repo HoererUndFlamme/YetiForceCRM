@@ -119,9 +119,8 @@ class Leads extends CRMEntity
 		return $query;
 	}
 
-	/** Returns a list of the associated Campaigns
-	 * @param $id -- campaign id :: Type Integer
-	 * @returns list of campaigns in array format
+	/**
+	 * @todo To remove after rebuilding relations
 	 */
 	public function get_campaigns($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
@@ -136,7 +135,7 @@ class Leads extends CRMEntity
 		require_once("modules/$related_module/$related_module.php");
 		$other = new $related_module();
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -196,7 +195,7 @@ class Leads extends CRMEntity
 		require_once("modules/$related_module/$related_module.php");
 		$other = new $related_module();
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;

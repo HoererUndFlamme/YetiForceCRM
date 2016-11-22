@@ -175,7 +175,7 @@ class Settings_TreesManager_Record_Model extends Settings_Vtiger_Record_Model
 	}
 
 	/**
-	 * Function to save the role
+	 * Function to save the tree
 	 */
 	public function save()
 	{
@@ -202,6 +202,7 @@ class Settings_TreesManager_Record_Model extends Settings_Vtiger_Record_Model
 		if ($this->get('replace')) {
 			$this->replaceValue($this->get('replace'), $this->get('module'), $templateId);
 		}
+		$this->clearCache();
 	}
 
 	/**
@@ -245,9 +246,10 @@ class Settings_TreesManager_Record_Model extends Settings_Vtiger_Record_Model
 		$db->createCommand()
 			->delete('vtiger_trees_templates_data', ['templateid' => $templateId])
 			->execute();
+		$this->clearCache();
 	}
 
-	public function getChildren($fieldValue, $fieldName, $moduleModel)
+	public static function getChildren($fieldValue, $fieldName, $moduleModel)
 	{
 		$adb = PearDatabase::getInstance();
 		$query = 'SELECT `fieldparams` FROM `vtiger_field` WHERE `tabid` = ? && `columnname` = ? && presence in (0,2)';
@@ -290,5 +292,13 @@ class Settings_TreesManager_Record_Model extends Settings_Vtiger_Record_Model
 			return $instance;
 		}
 		return null;
+	}
+
+	/**
+	 * Function clears cache
+	 */
+	public function clearCache()
+	{
+		\App\Cache::delete('TreeData', $this->getId());
 	}
 }

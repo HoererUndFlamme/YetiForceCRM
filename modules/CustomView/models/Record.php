@@ -246,20 +246,21 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 	/**
 	 * Function which provides the records for the current view
 	 * @param <Boolean> $skipRecords - List of the RecordIds to be skipped
-	 * @return <Array> List of RecordsIds
+	 * @return int[] List of RecordsIds
 	 */
 	public function getRecordIds($skipRecords = false, $module = false, $lockRecords = false)
 	{
-		$params = [];
-		$db = PearDatabase::getInstance();
 		$cvId = $this->getId();
 		$moduleModel = $this->getModule();
 		$moduleName = $moduleModel->get('name');
 		$baseTableName = $moduleModel->get('basetable');
 		$baseTableId = $moduleModel->get('basetableid');
-
-		$listViewModel = Vtiger_ListView_Model::getInstance($moduleName, $cvId);
-		$queryGenerator = $listViewModel->get('query_generator');
+		$queryGenerator = new App\QueryGenerator($moduleName);
+		if (!empty($cvId) && $cvId != 0) {
+			$queryGenerator->initForCustomViewById($cvId);
+		} else {
+			$queryGenerator->initForDefaultCustomView();
+		}
 		$queryGenerator->setFields(['id']);
 
 		$searchKey = $this->get('search_key');
@@ -268,42 +269,28 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 		if (!empty($searchValue)) {
 			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
-
 		$searchParams = $this->get('search_params');
 		if (empty($searchParams)) {
 			$searchParams = [];
 		}
-		$transformedSearchParams = Vtiger_Util_Helper::transferListSearchParamsToFilterCondition($searchParams, $moduleModel);
-		$glue = '';
-		if (count($queryGenerator->getWhereFields()) > 0 && (count($transformedSearchParams)) > 0) {
-			$glue = QueryGenerator::$AND;
+		$transformedSearchParams = $queryGenerator->parseBaseSearchParamsToCondition($searchParams);
+		$queryGenerator->parseAdvFilter($transformedSearchParams);
+		if ($module === 'RecycleBin') {
+			$queryGenerator->deletedCondition = false;
+			$queryGenerator->addAndConditionNative(['vtiger_crmentity.deleted = 1']);
 		}
-		$queryGenerator->parseAdvFilterList($transformedSearchParams, $glue);
-
-		$listQuery = $queryGenerator->getQuery();
-		if ($module == 'RecycleBin') {
-			$listQuery = preg_replace("/vtiger_crmentity.deleted\s*=\s*0/i", 'vtiger_crmentity.deleted = 1', $listQuery);
-		}
-
-		if ($skipRecords && !empty($skipRecords) && is_array($skipRecords) && count($skipRecords) > 0) {
-			$listQuery .= ' AND ' . $baseTableName . '.' . $baseTableId . ' NOT IN (' . implode(',', $skipRecords) . ')';
+		if (!empty($skipRecords) && count($skipRecords) > 0) {
+			$queryGenerator->addAndConditionNative(['not in', "$baseTableName.$baseTableId", $skipRecords]);
 		}
 		if ($lockRecords) {
-			$crmEntityModel = Vtiger_CRMEntity::getInstance($moduleName);
-			$lockFields = $crmEntityModel->getLockFields();
+			$lockFields = Vtiger_CRMEntity::getInstance($moduleName)->getLockFields();
 			if (is_array($lockFields)) {
 				foreach ($lockFields as $fieldName => $fieldValues) {
-					$listQuery .= ' AND ' . $baseTableName . '.' . $fieldName . ' NOT IN (' . generateQuestionMarks($fieldValues) . ')';
-					$params = array_merge($params, $fieldValues);
+					$queryGenerator->addAndConditionNative(['not in', "$baseTableName.$fieldName", $fieldValues]);
 				}
 			}
 		}
-		$result = $db->pquery($listQuery, $params);
-		$recordIds = [];
-		while ($row = $db->getRow($result)) {
-			$recordIds[] = $row[$baseTableId];
-		}
-		return $recordIds;
+		return $queryGenerator->createQuery()->column();
 	}
 
 	/**
@@ -906,18 +893,18 @@ class CustomView_Record_Model extends Vtiger_Base_Model
 
 	/**
 	 * Function to get the instance of Custom View module, given custom view id
-	 * @param <Integer> $cvId
+	 * @param int $cvId
 	 * @return CustomView_Record_Model instance, if exists. Null otherwise
 	 */
 	public static function getInstanceById($cvId)
 	{
-		$db = PearDatabase::getInstance();
-
-		$sql = 'SELECT * FROM vtiger_customview WHERE cvid = ?';
-		$params = array($cvId);
-		$result = $db->pquery($sql, $params);
-		if ($db->num_rows($result) > 0) {
-			$row = $db->query_result_rowdata($result, 0);
+		if (\App\Cache::has('CustomView_Record_ModelgetInstanceById', $cvId)) {
+			$row = \App\Cache::get('CustomView_Record_ModelgetInstanceById', $cvId);
+		} else {
+			$row = (new \App\Db\Query())->from('vtiger_customview')->where(['cvid' => $cvId])->one();
+			\App\Cache::save('CustomView_Record_ModelgetInstanceById', $cvId, $row, \App\Cache::LONG);
+		}
+		if ($row) {
 			$customView = new self();
 			return $customView->setData($row)->setModule($row['entitytype']);
 		}

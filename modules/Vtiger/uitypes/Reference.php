@@ -49,6 +49,31 @@ class Vtiger_Reference_UIType extends Vtiger_Base_UIType
 		$referenceModule = $this->getReferenceModule($value);
 		if ($referenceModule && !empty($value)) {
 			$referenceModuleName = $referenceModule->get('name');
+			if ($referenceModuleName === 'Users' || $referenceModuleName === 'Groups') {
+				$name = \App\Fields\Owner::getLabel($value);
+			} else {
+				$name = \App\Record::getLabel($value);
+			}
+			if ($rawText || $referenceModuleName === 'Users' || ($value && !Users_Privileges_Model::isPermitted($referenceModuleName, 'DetailView', $value))) {
+				return $name;
+			}
+			$name = vtlib\Functions::textLength($name, vglobal('href_max_length'));
+			$linkValue = "<a class='moduleColor_$referenceModuleName' href='index.php?module=$referenceModuleName&view=" . $referenceModule->getDetailViewName() . "&record=$value' title='" . App\Language::translate($referenceModuleName, $referenceModuleName) . "'>$name</a>";
+			return $linkValue;
+		}
+		return '';
+	}
+
+	/**
+	 * Function to get the Display Value in ListView, for the current field type with given DB Insert Value
+	 * @param mixed $value
+	 * @return string
+	 */
+	public function getListViewDisplayValue($value, $record = false, $recordInstance = false, $rawText = false)
+	{
+		$referenceModule = $this->getReferenceModule($value);
+		if ($referenceModule && !empty($value)) {
+			$referenceModuleName = $referenceModule->get('name');
 			if ($referenceModuleName == 'Users' || $referenceModuleName == 'Groups') {
 				$name = \App\Fields\Owner::getLabel($value);
 			} else {
@@ -57,8 +82,8 @@ class Vtiger_Reference_UIType extends Vtiger_Base_UIType
 			if ($rawText || $referenceModuleName == 'Users' || ($value && !Users_Privileges_Model::isPermitted($referenceModuleName, 'DetailView', $value))) {
 				return $name;
 			}
-			$name = vtlib\Functions::textLength($name, vglobal('href_max_length'));
-			$linkValue = "<a class='moduleColor_$referenceModuleName' href='index.php?module=$referenceModuleName&view=" . $referenceModule->getDetailViewName() . "&record=$value' title='" . vtranslate($referenceModuleName, $referenceModuleName) . "'>$name</a>";
+			$name = vtlib\Functions::textLength($name, $this->get('field')->get('maxlengthtext'));
+			$linkValue = "<a class='moduleColor_$referenceModuleName' href='index.php?module=$referenceModuleName&view=" . $referenceModule->getDetailViewName() . "&record=$value' title='" . App\Language::translate($referenceModuleName, $referenceModuleName) . "'>$name</a>";
 			return $linkValue;
 		}
 		return '';

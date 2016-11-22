@@ -190,9 +190,7 @@ class Contacts extends CRMEntity
 	}
 
 	/**
-	 * Function to get Contact related Tickets.
-	 * @param  integer   $id      - contactid
-	 * returns related Ticket records in array format
+	 * @todo To remove after rebuilding relations
 	 */
 	public function get_tickets($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
@@ -206,7 +204,7 @@ class Contacts extends CRMEntity
 		$related_module = vtlib\Functions::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -268,7 +266,7 @@ class Contacts extends CRMEntity
 		$related_module = vtlib\Functions::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -334,7 +332,7 @@ class Contacts extends CRMEntity
 		$related_module = vtlib\Functions::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -396,7 +394,7 @@ class Contacts extends CRMEntity
 		$related_module = vtlib\Functions::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -659,11 +657,17 @@ class Contacts extends CRMEntity
 	}
 
 	// Function to unlink all the dependent entities of the given Entity by Id
-	public function unlinkDependencies($module, $id)
+	public function mark_deleted($recordId)
 	{
-		$this->db->pquery('DELETE FROM vtiger_portalinfo WHERE id = ?', array($id));
-		$this->db->pquery('UPDATE vtiger_customerdetails SET portal=0,support_start_date=NULL,support_end_date=NULl WHERE customerid=?', array($id));
-		parent::unlinkDependencies($module, $id);
+
+		$db = \App\Db::getInstance();
+		$db->createCommand()->delete('vtiger_portalinfo', ['id' => $recordId])->execute();
+		$db->createCommand()->update('vtiger_customerdetails', [
+			'portal' => 0,
+			'support_start_date' => null,
+			'support_end_date' => null
+			], ['customerid' => $recordId])->execute();
+		parent::mark_deleted($recordId);
 	}
 
 	// Function to unlink an entity with given Id from another entity

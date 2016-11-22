@@ -12,6 +12,19 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 {
 
 	/**
+	 * Set list view order by
+	 */
+	public function loadListViewOrderBy()
+	{
+		//List view will be displayed on recently created/modified records
+		if (empty($this->getForSql('orderby')) && empty($this->getForSql('sortorder')) && $this->getModule()->get('name') != "Users") {
+			$this->set('orderby', 'modifiedtime');
+			$this->set('sortorder', 'DESC');
+		}
+		parent::loadListViewOrderBy();
+	}
+
+	/**
 	 * Function to get the list view entries
 	 * @param Vtiger_Paging_Model $pagingModel
 	 * @return array - Associative array of record id mapped to Vtiger_Record_Model instance.
@@ -20,14 +33,7 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 	{
 		$moduleModel = $this->getModule();
 		$moduleName = $moduleModel->get('name');
-		$this->loadListViewCondition($moduleName);
-		$orderBy = $this->getForSql('orderby');
-		$sortOrder = $this->getForSql('sortorder');
-		//List view will be displayed on recently created/modified records
-		if (empty($orderBy) && empty($sortOrder) && $moduleName != "Users") {
-			$this->set('orderby', 'modifiedtime');
-			$this->set('sortorder', 'DESC');
-		}
+		$this->loadListViewCondition();
 		$this->loadListViewOrderBy();
 		$queryGenerator = $this->get('query_generator');
 		$query = $queryGenerator->createQuery();
@@ -44,8 +50,8 @@ class Products_ListView_Model extends Vtiger_ListView_Model
 			}
 			if (in_array($moduleName, ['Products', 'Services'])) {
 				$query->andWhere(['or',
-					['vtiger_crmentityrel.crmid' => $salesProcessId, 'module' => 'SSalesProcesses'],
-					['vtiger_crmentityrel.relcrmid' => $salesProcessId, 'relmodule' => 'SSalesProcesses']
+						['vtiger_crmentityrel.crmid' => $salesProcessId, 'module' => 'SSalesProcesses'],
+						['vtiger_crmentityrel.relcrmid' => $salesProcessId, 'relmodule' => 'SSalesProcesses']
 				]);
 			}
 		}

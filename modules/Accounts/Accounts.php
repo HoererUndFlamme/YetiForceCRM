@@ -78,10 +78,8 @@ class Accounts extends CRMEntity
 		
 	}
 
-	// Mike Crowe Mod --------------------------------------------------------Default ordering for us
-	/** Returns a list of the associated Campaigns
-	 * @param $id -- campaign id :: Type Integer
-	 * @returns list of campaigns in array format
+	/**
+	 * @todo To remove after rebuilding relations
 	 */
 	public function get_campaigns($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
@@ -94,7 +92,7 @@ class Accounts extends CRMEntity
 		$related_module = \App\Module::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -157,7 +155,7 @@ class Accounts extends CRMEntity
 		$related_module = \App\Module::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -209,9 +207,7 @@ class Accounts extends CRMEntity
 	}
 
 	/**
-	 * Function to get Account related Tickets
-	 * @param  integer   $id      - accountid
-	 * returns related Ticket record in array format
+	 * @todo To remove after rebuilding relations
 	 */
 	public function get_tickets($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
@@ -224,7 +220,7 @@ class Accounts extends CRMEntity
 		$related_module = \App\Module::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -284,7 +280,7 @@ class Accounts extends CRMEntity
 		$related_module = \App\Module::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 		if ($singlepane_view == 'true')
 			$returnset = '&return_module=' . $this_module . '&return_action=DetailView&return_id=' . $id;
@@ -687,43 +683,17 @@ class Accounts extends CRMEntity
 		return $child_accounts;
 	}
 
-	// Function to unlink the dependent records of the given record by id
-	public function unlinkDependencies($module, $id)
+	/**
+	 * Function to unlink all the dependent entities of the given Entity by Id
+	 * @param string $moduleName
+	 * @param int $recordId
+	 */
+	public function deletePerminently($moduleName, $recordId)
 	{
-
-		//Backup Contact-Account Relation
-		$con_q = 'SELECT contactid FROM vtiger_contactdetails WHERE parentid = ?';
-		$con_res = $this->db->pquery($con_q, array($id));
-		if ($this->db->num_rows($con_res) > 0) {
-			$con_ids_list = [];
-			$numRowsConRes = $this->db->num_rows($con_res);
-			for ($k = 0; $k < $numRowsConRes; $k++) {
-				$con_ids_list[] = $this->db->query_result($con_res, $k, "contactid");
-			}
-			$params = array($id, RB_RECORD_UPDATED, 'vtiger_contactdetails', 'parentid', 'contactid', implode(",", $con_ids_list));
-			$this->db->pquery('INSERT INTO vtiger_relatedlists_rb VALUES(?,?,?,?,?,?)', $params);
-		}
-		//Deleting Contact-Account Relation.
-		$con_q = 'UPDATE vtiger_contactdetails SET parentid = 0 WHERE parentid = ?';
-		$this->db->pquery($con_q, array($id));
-
-		//Backup Trouble Tickets-Account Relation
-		$tkt_q = 'SELECT ticketid FROM vtiger_troubletickets WHERE parent_id = ?';
-		$tkt_res = $this->db->pquery($tkt_q, array($id));
-		if ($this->db->num_rows($tkt_res) > 0) {
-			$tkt_ids_list = [];
-			$numRowsTktRes = $this->db->num_rows($tkt_res);
-			for ($k = 0; $k < $numRowsTktRes; $k++) {
-				$tkt_ids_list[] = $this->db->query_result($tkt_res, $k, "ticketid");
-			}
-			$params = array($id, RB_RECORD_UPDATED, 'vtiger_troubletickets', 'parent_id', 'ticketid', implode(",", $tkt_ids_list));
-			$this->db->pquery('INSERT INTO vtiger_relatedlists_rb VALUES(?,?,?,?,?,?)', $params);
-		}
-		//Deleting Trouble Tickets-Account Relation.
-		$tt_q = 'UPDATE vtiger_troubletickets SET parent_id = 0 WHERE parent_id = ?';
-		$this->db->pquery($tt_q, array($id));
-
-		parent::unlinkDependencies($module, $id);
+		$db = \App\Db::getInstance();
+		$db->createCommand()->update('vtiger_contactdetails', ['parentid' => 0], ['parentid' => $recordId])->execute();
+		$db->createCommand()->update('vtiger_troubletickets', ['parent_id' => 0], ['parent_id' => $recordId])->execute();
+		parent::deletePerminently($moduleName, $recordId);
 	}
 
 	// Function to unlink an entity with given Id from another entity
@@ -774,8 +744,10 @@ class Accounts extends CRMEntity
 			}
 		}
 	}
-	/* Function to get attachments in the related list of accounts module */
 
+	/**
+	 * @todo To remove after rebuilding relations
+	 */
 	public function get_attachments($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
 
@@ -788,7 +760,7 @@ class Accounts extends CRMEntity
 		// that are used in the query, they are defined in this generic API
 		vtlib_setup_modulevars($related_module, $other);
 
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 		$button = '';
 		if ($actions) {
 			if (is_string($actions))

@@ -40,6 +40,7 @@ class QueryGenerator
 	private $queryFields = [];
 	private $order = [];
 	private $sourceRecord;
+	private $concatColumn = [];
 
 	/**
 	 * @var boolean 
@@ -161,6 +162,15 @@ class QueryGenerator
 	public function setCustomColumn($columns)
 	{
 		$this->customColumns[] = $columns;
+	}
+
+	/**
+	 * Set concat column
+	 * @param type $columns
+	 */
+	public function setConcatColumn($fieldName, $concat)
+	{
+		$this->concatColumn[$fieldName] = $concat;
 	}
 
 	/**
@@ -295,15 +305,18 @@ class QueryGenerator
 
 	/**
 	 * Init function for default custom view
+	 * @param boolean $noCache
+	 * @param boolean $onlyFields
+	 * @return boolean
 	 */
-	public function initForDefaultCustomView($noCache = false)
+	public function initForDefaultCustomView($noCache = false, $onlyFields = false)
 	{
 		$customView = CustomView::getInstance($this->moduleName, $this->user);
 		$viewId = $customView->getViewId($noCache);
 		if (empty($viewId) || $viewId === 0) {
 			return false;
 		}
-		$this->initForCustomViewById($viewId);
+		$this->initForCustomViewById($viewId, $onlyFields);
 		return true;
 	}
 
@@ -344,8 +357,9 @@ class QueryGenerator
 	/**
 	 * Get custom view by id
 	 * @param mixed $viewId
+	 * @param boolean $onlyFields
 	 */
-	public function initForCustomViewById($viewId)
+	public function initForCustomViewById($viewId, $onlyFields = false)
 	{
 		$this->fields[] = 'id';
 		$customView = CustomView::getInstance($this->moduleName, $this->user);
@@ -374,20 +388,22 @@ class QueryGenerator
 				}
 			}
 		}
-		$this->stdFilterList = $customView->getStdFilterByCvid($viewId);
-		$this->advFilterList = $customView->getAdvFilterByCvid($viewId);
-		if (is_array($this->stdFilterList)) {
-			if (!empty($this->stdFilterList['columnname'])) {
-				list ($tableName, $columnName, $fieldName, $moduleFieldLabel, $fieldType) = explode(':', $this->stdFilterList['columnname']);
-				$this->addRequiredCondition([
-					'between',
-					$fieldName,
-					$this->fixDateTimeValue($fieldName, $this->stdFilterList['startdate']),
-					$this->fixDateTimeValue($fieldName, $this->stdFilterList['enddate'], false)
-				]);
+		if (!$onlyFields) {
+			$this->stdFilterList = $customView->getStdFilterByCvid($viewId);
+			$this->advFilterList = $customView->getAdvFilterByCvid($viewId);
+			if (is_array($this->stdFilterList)) {
+				if (!empty($this->stdFilterList['columnname'])) {
+					list ($tableName, $columnName, $fieldName, $moduleFieldLabel, $fieldType) = explode(':', $this->stdFilterList['columnname']);
+					$this->addRequiredCondition([
+						'between',
+						$fieldName,
+						$this->fixDateTimeValue($fieldName, $this->stdFilterList['startdate']),
+						$this->fixDateTimeValue($fieldName, $this->stdFilterList['enddate'], false)
+					]);
+				}
 			}
+			$this->parseAdvFilter();
 		}
-		$this->parseAdvFilter();
 	}
 
 	/**
@@ -442,16 +458,10 @@ class QueryGenerator
 		$this->fields = array_intersect($this->fields, $allFields);
 		$columns = [];
 		foreach ($this->fields as &$fieldName) {
-			$columns[$fieldName] = $this->getColumnName($fieldName);
-			//To merge date and time fields
-			if ($this->moduleName === 'Calendar' && ($fieldName === 'date_start' || $fieldName === 'due_date')) {
-				if ($fieldName === 'date_start') {
-					$timeField = 'time_start';
-					$columns[$fieldName] = $this->getColumnName($timeField);
-				} elseif ($fieldName === 'due_date') {
-					$timeField = 'time_end';
-					$columns[$fieldName] = $this->getColumnName($timeField);
-				}
+			if (isset($this->concatColumn[$fieldName])) {
+				$columns[$fieldName] = new \yii\db\Expression($this->concatColumn[$fieldName]);
+			} else {
+				$columns[$fieldName] = $this->getColumnName($fieldName);
 			}
 		}
 		foreach ($this->customColumns as $customColumn) {
@@ -659,7 +669,7 @@ class QueryGenerator
 			return $this->queryFields[$fieldName];
 		}
 		if ($fieldName === 'id') {
-			$queryField = new \App\QueryField\IdField($this, '');
+			$queryField = new QueryField\IdField($this, '');
 			return $this->queryFields[$fieldName] = $queryField;
 		}
 		$field = $this->getModuleField($fieldName);
@@ -749,14 +759,14 @@ class QueryGenerator
 				list ($fieldName, $operator, $fieldValue, $specialOption) = $fieldSearchInfo;
 				$field = $this->getModuleField($fieldName);
 				if ($field->getFieldDataType() === 'tree' && $specialOption) {
-					$fieldValue = Settings_TreesManager_Record_Model::getChildren($fieldValue, $fieldName, $moduleModel);
+					$fieldValue = \Settings_TreesManager_Record_Model::getChildren($fieldValue, $fieldName, $this->moduleModel);
 				}
 				//Request will be having in terms of AM and PM but the database will be having in 24 hr format so converting
 				if ($field->getFieldDataType() === 'time') {
-					$fieldValue = Vtiger_Time_UIType::getTimeValueWithSeconds($fieldValue);
+					$fieldValue = \Vtiger_Time_UIType::getTimeValueWithSeconds($fieldValue);
 				}
 				if ($field->getFieldDataType() === 'currency') {
-					$fieldValue = CurrencyField::convertToDBFormat($fieldValue);
+					$fieldValue = \CurrencyField::convertToDBFormat($fieldValue);
 				}
 				if ($fieldName === 'date_start' || $fieldName === 'due_date' || $field->getFieldDataType() === 'datetime') {
 					$dateValues = explode(',', $fieldValue);

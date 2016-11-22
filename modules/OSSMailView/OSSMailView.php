@@ -296,13 +296,6 @@ class OSSMailView extends CRMEntity
 		return $query;
 	}
 
-	// Function to unlink all the dependent entities of the given Entity by Id
-	public function unlinkDependencies($module, $id)
-	{
-
-		parent::unlinkDependencies($module, $id);
-	}
-
 	/**
 	 * Invoked when special actions are performed on the module.
 	 * @param String Module name
@@ -373,7 +366,7 @@ class OSSMailView extends CRMEntity
 		$related_module = vtlib\Functions::getModuleName($rel_tab_id);
 		$other = CRMEntity::getInstance($related_module);
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 		$button = '';
 		if ($actions) {
 			if (is_string($actions))

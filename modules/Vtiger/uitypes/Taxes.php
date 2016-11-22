@@ -28,7 +28,13 @@ class Vtiger_Taxes_UIType extends Vtiger_Base_UIType
 	 */
 	public function getDisplayValue($value, $record = false, $recordInstance = false, $rawText = false)
 	{
-		return implode(', ', $this->getEditViewDisplayValue($value, $record));
+		$display = [];
+		if (!empty($value)) {
+			$taxes = $this->getPicklistValues();
+			$values = explode(',', $value);
+			$display = array_intersect_key($taxes, array_flip($values));
+		}
+		return implode(', ', $display);
 	}
 
 	/**
@@ -40,11 +46,13 @@ class Vtiger_Taxes_UIType extends Vtiger_Base_UIType
 	public function getEditViewDisplayValue($value, $record = false)
 	{
 		$display = [];
-		$values = explode(',', $value);
-		$taxes = $this->getPicklistValues();
-		foreach ($values as $tax) {
-			if (isset($taxes[$tax])) {
-				$display[$tax] = $taxes[$tax];
+		if (!empty($value)) {
+			$values = explode(',', $value);
+			$taxes = $this->getPicklistValues();
+			foreach ($values as $tax) {
+				if (isset($taxes[$tax])) {
+					$display[] = $tax;
+				}
 			}
 		}
 		return $display;
@@ -99,6 +107,6 @@ class Vtiger_Taxes_UIType extends Vtiger_Base_UIType
 	 */
 	public function getListSearchTemplateName()
 	{
-		return 'uitypes/TaxesFieldSearchView.tpl';
+		return 'uitypes/MultiSelectFieldSearchView.tpl';
 	}
 }

@@ -258,9 +258,7 @@ class OSSEmployees extends Vtiger_CRMEntity
 	 */
 
 	/**
-	 * Invoked when special actions are performed on the module.
-	 * @param String Module name
-	 * @param String Event Type (module.postinstall, module.disabled, module.enabled, module.preuninstall)
+	 * @todo To remove after rebuilding relations
 	 */
 	public function get_osstimecontrol($id, $cur_tab_id, $rel_tab_id, $actions = false)
 	{
@@ -275,7 +273,7 @@ class OSSEmployees extends Vtiger_CRMEntity
 		require_once("modules/$related_module/$related_module.php");
 		$other = new $related_module();
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 
 
 

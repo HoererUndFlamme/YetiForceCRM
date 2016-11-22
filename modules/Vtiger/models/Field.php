@@ -230,8 +230,6 @@ class Vtiger_Field_Model extends vtlib\Field
 					break;
 				case 69: $fieldDataType = 'image';
 					break;
-				case 83: $fieldDataType = 'productTax';
-					break;
 				case 117: $fieldDataType = 'currencyList';
 					break;
 				case 120: $fieldDataType = 'sharedOwner';
@@ -249,6 +247,8 @@ class Vtiger_Field_Model extends vtlib\Field
 				case 308: $fieldDataType = 'rangeTime';
 					break;
 				case 309: $fieldDataType = 'categoryMultipicklist';
+					break;
+				case 122: $fieldDataType = 'posList';
 					break;
 				default:
 					$webserviceField = $this->getWebserviceFieldObject();
@@ -694,6 +694,7 @@ class Vtiger_Field_Model extends vtlib\Field
 			case 'inventoryLimit':
 			case 'languages':
 			case 'currencyList':
+			case 'fileLocationType':
 			case 'taxes':
 			case 'posList':
 				$pickListValues = $this->getPicklistValues();
@@ -982,15 +983,6 @@ class Vtiger_Field_Model extends vtlib\Field
 	public function getEditViewDisplayValue($value, $record = false)
 	{
 		return $this->getUITypeModel()->getEditViewDisplayValue($value, $record);
-	}
-
-	/**
-	 * Function to retieve types of file locations in Documents Edit
-	 * @return <array> - List of file location types
-	 */
-	public function getFileLocationType()
-	{
-		return array('I' => 'LBL_INTERNAL', 'E' => 'LBL_EXTERNAL');
 	}
 
 	/**

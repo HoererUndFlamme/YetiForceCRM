@@ -417,7 +417,7 @@ class Activity extends CRMEntity
 		require_once("modules/$related_module/$related_module.php");
 		$other = new $related_module();
 		vtlib_setup_modulevars($related_module, $other);
-		$singular_modname = vtlib_toSingular($related_module);
+		$singular_modname = \App\Language::getSingularModuleName($related_module);
 		$returnset = '&return_module=' . $this_module . '&return_action=DetailView&activity_mode=Events&return_id=' . $id;
 
 		$search_string = '';
@@ -644,18 +644,17 @@ class Activity extends CRMEntity
 		\App\Log::trace('Exiting vtiger_activity_reminder method ...');
 	}
 
-	// Function to unlink all the dependent entities of the given Entity by Id
-	public function unlinkDependencies($module, $id)
+	/**
+	 * Function to unlink all the dependent entities of the given Entity by Id
+	 * @param string $moduleName
+	 * @param int $recordId
+	 */
+	public function deletePerminently($moduleName, $recordId)
 	{
-
-
-		$sql = 'DELETE FROM vtiger_activity_reminder WHERE activity_id=?';
-		$this->db->pquery($sql, array($id));
-
-		$sql = 'DELETE FROM vtiger_recurringevents WHERE activityid=?';
-		$this->db->pquery($sql, array($id));
-
-		parent::unlinkDependencies($module, $id);
+		$db = \App\Db::getInstance();
+		$db->createCommand()->delete('vtiger_activity_reminder', ['activity_id' => $recordId])->execute();
+		$db->createCommand()->delete('vtiger_recurringevents', ['activityid' => $recordId])->execute();
+		parent::deletePerminently($moduleName, $recordId);
 	}
 
 	/**
