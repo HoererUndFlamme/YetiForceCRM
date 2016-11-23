@@ -1481,10 +1481,13 @@ class Vtiger_Module_Model extends \vtlib\Module
 		$focus = CRMEntity::getInstance($this->getName());
 		$focus->id = $recordId;
 		switch ($functionName) {
+			/**
+			 * @todo To remove after rebuilding relations
+			 */
 			case 'get_emails':
 				$query = $relatedModule->reletedQueryMail2Records($recordId, $relatedModule, $relationModel);
 				break;
-			case 'get_many_to_many':
+			case 'getManyToMany':
 				$query = $this->getRelationQueryM2M($recordId, $relatedModule, $relationModel);
 				break;
 			/**

@@ -55,6 +55,11 @@ class ServiceContracts extends CRMEntity
 		'Used Units' => 'used_units',
 		'Total Units' => 'total_units'
 	);
+
+	/**
+	 * @var string[] List of fields in the RelationListView
+	 */
+	public $relationFields = ['subject', 'assigned_user_id', 'contract_no', 'used_units', 'total_units'];
 	// Make the field link to detail view
 	public $list_link_field = 'subject';
 	// For Popup listview and UI type support
@@ -592,7 +597,7 @@ class ServiceContracts extends CRMEntity
 			$entityIds = $return_id;
 			$return_modules = "'" . $return_module . "'";
 		}
-		if ($relatedName == 'get_many_to_many') {
+		if ($relatedName == 'getManyToMany') {
 			parent::unlinkRelationship($id, $return_module, $return_id, $relatedName);
 		} else {
 			$where = '(relcrmid= ? && module IN (?) && crmid IN (?)) || (crmid= ? && relmodule IN (?) && relcrmid IN (?))';

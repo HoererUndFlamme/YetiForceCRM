@@ -63,6 +63,15 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 	}
 
 	/**
+	 * Get query generator instance
+	 * @return \App\QueryGenerator
+	 */
+	public function getQueryGenerator()
+	{
+		return $this->get('query_generator');
+	}
+
+	/**
 	 * Get relation list view model instance
 	 * @param Vtiger_Module_Model $parentRecordModel
 	 * @param Vtiger_Module_Model $relationModuleName
@@ -81,8 +90,10 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 
 		$relationModel = Vtiger_Relation_Model::getInstance($parentModuleModel, $relatedModuleModel, $label);
 		$instance->setParentRecordModel($parentRecordModel);
+		$queryGenerator = new \App\QueryGenerator($relatedModuleModel->getName());
 
 		if (!$relationModel) {
+			die(">>> No relationModel instance, requires verification  1 <<<");
 			$relatedModuleName = $relatedModuleModel->getName();
 			$parentModuleModel = $instance->getParentRecordModel()->getModule();
 			$referenceFieldOfParentModule = $parentModuleModel->getFieldsByType('reference');
@@ -96,8 +107,9 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 				}
 			}
 		}
-		$queryGenerator = new \App\QueryGenerator($relatedModuleModel->getName());
-		$instance->setRelationModel($relationModel ? $relationModel : false)->set('query_generator', $queryGenerator);
+		$relationModel->set('query_generator', $queryGenerator);
+		$relationModel->set('parentRecord', $parentRecordModel);
+		$instance->setRelationModel($relationModel)->set('query_generator', $queryGenerator);
 		return $instance;
 	}
 
@@ -114,8 +126,6 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		$this->loadOrderBy();
 		$relationModel = $this->getRelationModel();
 		if (!empty($relationModel) && $relationModel->get('name')) {
-			$relationModel->set('query_generator', $this->get('query_generator'));
-			$relationModel->set('parentRecord', $this->getParentRecordModel());
 			$queryGenerator = $relationModel->getQuery();
 			$relationModuleName = $queryGenerator->getModule();
 			if (isset($this->mandatoryColumns[$relationModuleName])) {
@@ -127,7 +137,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 			$this->set('Query', $query);
 			return $query;
 		}
-		die(">>> No relationModel instance, requires verification <<<");
+		die(">>> No relationModel instance, requires verification 2 <<<");
 		/*
 		  $relatedModuleModel = $this->getRelatedModuleModel();
 
@@ -175,7 +185,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 	public function loadCondition()
 	{
 		$relatedModuleName = $this->getRelatedModuleModel()->getName();
-		$queryGenerator = $this->get('query_generator');
+		$queryGenerator = $this->getRelationModel()->getQueryGenerator();
 		$srcRecord = $this->get('src_record');
 		if ($relatedModuleName === $this->get('src_module') && !empty($srcRecord)) {
 			$queryGenerator->addCondition('id', $srcRecord, 'n');
@@ -217,13 +227,24 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		}
 		$relatedRecordList = [];
 		foreach ($rows as &$row) {
-			$relatedRecordList[$row['id']] = $relationModuleModel->getRecordFromArray($row);
+			$recordModel = $relationModuleModel->getRecordFromArray($row);
+			$this->getEntryExtend($recordModel);
+			$relatedRecordList[$row['id']] = $recordModel;
 		}
 		$sql = $query->createCommand()->getRawSql();
-		//echo "<code>";
-		//var_dump($sql);
-		//echo "</code>";
+		echo "<code>";
+		var_dump($sql);
+		echo "</code>";
 		return $relatedRecordList;
+	}
+
+	/**
+	 * Function extending recordModel object with additional information
+	 * @param Vtiger_Record_Model $recordModel
+	 */
+	public function getEntryExtend(Vtiger_Record_Model $recordModel)
+	{
+		
 	}
 
 	/**
@@ -236,7 +257,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 			$relationModule = $this->getRelationModel()->getRelationModuleModel();
 			$field = $relationModule->getFieldByColumn($orderBy);
 			if ($field) {
-				$this->get('query_generator')->setOrder($field->getName(), $this->getForSql('sortorder'));
+				$this->getRelationModel()->getQueryGenerator()->setOrder($field->getName(), $this->getForSql('sortorder'));
 			}
 		}
 	}
@@ -249,6 +270,11 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 	{
 		$fields = $this->getRelationModel()->getQueryFields();
 		unset($fields['id']);
+		foreach ($fields as $fieldName => &$fieldModel) {
+			if (!$fieldModel->isViewable()) {
+				unset($fields[$fieldName]);
+			}
+		}
 		return $fields;
 	}
 
@@ -259,6 +285,91 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 	public function getRelatedEntriesCount()
 	{
 		return $this->getRelationQuery()->count();
+	}
+
+	/**
+	 * Get tree view model
+	 * @return Vtiger_TreeCategoryModal_Model
+	 */
+	public function getTreeViewModel()
+	{
+		return Vtiger_TreeCategoryModal_Model::getInstance($this->getRelatedModuleModel());
+	}
+
+	/**
+	 * Get tree headers
+	 * @return string[]
+	 */
+	public function getTreeHeaders()
+	{
+		$fields = $this->getTreeViewModel()->getTreeField();
+		return [
+			'name' => $fields['fieldlabel']
+		];
+	}
+
+	/**
+	 * Get tree entries
+	 * @return array[]
+	 */
+	public function getTreeEntries()
+	{
+		$recordId = $this->getParentRecordModel()->getId();
+		$relModuleId = $this->getRelatedModuleModel()->getId();
+		$relModuleName = $this->getRelatedModuleModel()->getName();
+		$relationModel = $this->getRelationModel();
+		$template = $this->getTreeViewModel()->getTemplate();
+		$showCreatorDetail = $relationModel->showCreatorDetail();
+		$showComment = $relationModel->showComment();
+
+		$rows = (new \App\Db\Query())
+				->select(['ttd.*', 'rel.crmid', 'rel.rel_created_time', 'rel.rel_created_user', 'rel.rel_comment'])
+				->from('vtiger_trees_templates_data ttd')
+				->innerJoin('u_#__crmentity_rel_tree rel', 'rel.tree = ttd.tree')
+				->where(['ttd.templateid' => $template, 'rel.crmid' => $recordId, 'rel.relmodule' => $relModuleId])->all();
+		$trees = [];
+		foreach ($rows as &$row) {
+			$pieces = explode('::', $row['parenttrre']);
+			end($pieces);
+			$parent = prev($pieces);
+			$parentName = '';
+			if ($row['depth'] > 0) {
+				$treeDetail = App\Fields\Tree::getValueByTreeId($template, $parent);
+				$parentName = '(' . App\Language::translate($treeDetail['name'], $relModuleName) . ') ';
+			}
+			$tree = [
+				'id' => $row['tree'],
+				'name' => $parentName . App\Language::translate($row['name'], $relModuleName),
+				'parent' => $parent == 0 ? '#' : $parent
+			];
+			if ($showCreatorDetail) {
+				$tree['rel_created_user'] = \App\Fields\Owner::getLabel($row['rel_created_user']);
+				$tree['rel_created_time'] = Vtiger_Datetime_UIType::getDisplayDateTimeValue($row['rel_created_time']);
+			}
+			if ($showComment) {
+				$tree['rel_comment'] = $row['rel_comment'];
+			}
+			if (!empty($row['icon'])) {
+				$tree['icon'] = $row['icon'];
+			}
+			$trees[] = $tree;
+		}
+		return $trees;
+	}
+
+	/**
+	 * Function to get Total number of record in this relation
+	 * @return int
+	 */
+	public function getRelatedTreeEntriesCount()
+	{
+		$db = PearDatabase::getInstance();
+		$recordId = $this->getParentRecordModel()->getId();
+		$relModuleId = $this->getRelatedModuleModel()->getId();
+		$treeViewModel = $this->getTreeViewModel();
+		$template = $treeViewModel->getTemplate();
+		return (new \App\Db\Query())->from('vtiger_trees_templates_data ttd')->innerJoin('u_#__crmentity_rel_tree rel', 'rel.tree = ttd.tree')
+				->where(['ttd.templateid' => $template, 'rel.crmid' => $recordId, 'rel.relmodule' => $relModuleId])->count();
 	}
 
 	public function getCreateViewUrl()
@@ -407,23 +518,6 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		return $addLinkModel;
 	}
 
-	/**
-	 * Function to get Total number of record in this relation
-	 * @return <Integer>
-	 */
-	public function getRelatedTreeEntriesCount()
-	{
-		$db = PearDatabase::getInstance();
-		$recordId = $this->getParentRecordModel()->getId();
-		$relModuleId = $this->getRelatedModuleModel()->getId();
-		$treeViewModel = $this->getTreeViewModel();
-		$template = $treeViewModel->getTemplate();
-		$result = $db->pquery('SELECT count(1) FROM vtiger_trees_templates_data tr '
-			. 'INNER JOIN u_yf_crmentity_rel_tree rel ON rel.tree = tr.tree '
-			. 'WHERE tr.templateid = ? && rel.crmid = ? && rel.relmodule = ?', [$template, $recordId, $relModuleId]);
-		return $db->getSingleValue($result);
-	}
-
 	public function getCurrencySymbol($recordId, $fieldModel)
 	{
 		$db = PearDatabase::getInstance();
@@ -461,69 +555,5 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		AND u_yf_favorites.userid = ?';
 		$result = $db->pquery($query, [$moduleName, $relModuleName, $recordId, $currentUser->getId()]);
 		return $db->getArrayColumn($result, 'relcrmid');
-	}
-
-	public function getTreeViewModel()
-	{
-		return Vtiger_TreeCategoryModal_Model::getInstance($this->getRelatedModuleModel());
-	}
-
-	public function getTreeHeaders()
-	{
-		$fields = $this->getTreeViewModel()->getTreeField();
-		return [
-			'name' => $fields['fieldlabel']
-		];
-	}
-
-	public function getTreeEntries()
-	{
-		$db = PearDatabase::getInstance();
-		$recordId = $this->getParentRecordModel()->getId();
-		$relModuleId = $this->getRelatedModuleModel()->getId();
-		$relModuleName = $this->getRelatedModuleModel()->getName();
-		$treeViewModel = $this->getTreeViewModel();
-		$relationModel = $this->getRelationModel();
-		$template = $treeViewModel->getTemplate();
-
-		$result = $db->pquery('SELECT tr.*,rel.crmid,rel.rel_created_time,rel.rel_created_user,rel.rel_comment FROM vtiger_trees_templates_data tr '
-			. 'INNER JOIN u_yf_crmentity_rel_tree rel ON rel.tree = tr.tree '
-			. 'WHERE tr.templateid = ? AND rel.crmid = ? AND rel.relmodule = ?', [$template, $recordId, $relModuleId]);
-		$trees = [];
-		while ($row = $db->getRow($result)) {
-			$treeID = $row['tree'];
-			$pieces = explode('::', $row['parenttrre']);
-			end($pieces);
-			$parent = prev($pieces);
-			$parentName = '';
-			if ($row['depth'] > 0) {
-				$result2 = $db->pquery('SELECT name FROM vtiger_trees_templates_data WHERE templateid = ? AND tree = ?', [$template, $parent]);
-				$parentName = $db->getSingleValue($result2);
-				$parentName = '(' . vtranslate($parentName, $relModuleName) . ') ';
-			}
-			$tree = [
-				'id' => $treeID,
-				'name' => $parentName . vtranslate($row['name'], $relModuleName),
-				'parent' => $parent == 0 ? '#' : $parent
-			];
-
-			if ($relationModel->showCreatorDetail()) {
-				$tree['relCreatedUser'] = \App\Fields\Owner::getLabel($row['rel_created_user']);
-				$tree['relCreatedTime'] = Vtiger_Datetime_UIType::getDisplayDateTimeValue($row['rel_created_time']);
-			}
-			if ($relationModel->showComment()) {
-				if (strlen($row['rel_comment']) > AppConfig::relation('COMMENT_MAX_LENGTH')) {
-					$tree['relCommentFull'] = $row['rel_comment'];
-				}
-				$tree['relComment'] = vtlib\Functions::textLength($row['rel_comment'], AppConfig::relation('COMMENT_MAX_LENGTH'));
-			}
-
-			if (!empty($row['icon'])) {
-				$tree['icon'] = $row['icon'];
-			}
-			$trees[] = $tree;
-		}
-
-		return $trees;
 	}
 }

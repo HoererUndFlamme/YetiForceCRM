@@ -142,9 +142,10 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	 */
 	public function showCreatorDetail()
 	{
-		if ($this->get('creator_detail') === 0 && $this->getRelationType() !== self::RELATION_M2M) {
+		if ($this->get('creator_detail') === 0 || $this->getRelationType() !== self::RELATION_M2M) {
 			return false;
 		}
+
 		return (bool) $this->get('creator_detail');
 	}
 
@@ -154,7 +155,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	 */
 	public function showComment()
 	{
-		if ($this->get('relation_comment') === 0 && $this->getRelationType() !== self::RELATION_M2M) {
+		if ($this->get('relation_comment') === 0 || $this->getRelationType() !== self::RELATION_M2M) {
 			return false;
 		}
 		return (bool) $this->get('relation_comment');
@@ -378,6 +379,10 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$queryGenerator->addAndConditionNative(['vtiger_campaign_records.crmid' => $this->get('parentRecord')->getId()]);
 	}
 
+	/**
+	 * Get Activities for related module
+	 * @throws \Exception\AppException
+	 */
 	public function getActivities()
 	{
 		$queryGenerator = $this->getQueryGenerator();
@@ -413,6 +418,26 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	}
 
 	/**
+	 * Get related emails
+	 */
+	public function getEmails()
+	{
+		$queryGenerator = $this->getQueryGenerator();
+		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_ossmailview_relation', 'vtiger_ossmailview_relation.ossmailviewid = vtiger_ossmailview.ossmailviewid']);
+		$queryGenerator->addAndConditionNative(['vtiger_ossmailview_relation.crmid' => $this->get('parentRecord')->getId()]);
+	}
+
+	/**
+	 * Get records for emails
+	 */
+	public function getRecordToMails()
+	{
+		$queryGenerator = $this->getQueryGenerator();
+		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_ossmailview_relation', 'vtiger_ossmailview_relation.crmid = vtiger_crmentity.crmid']);
+		$queryGenerator->addAndConditionNative(['vtiger_ossmailview_relation.ossmailviewid' => $this->get('parentRecord')->getId()]);
+	}
+
+	/**
 	 * Get relation inventory fields
 	 * @return Vtiger_Basic_InventoryField[]
 	 */
@@ -431,7 +456,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$fields = [];
 		foreach ($columns as &$column) {
 			if (!empty($inventoryFields[$column]) && $inventoryFields[$column]->isVisible()) {
-				$fields[] = $column;
+				$fields[$column] = $inventoryFields[$column];
 			}
 		}
 		$this->set('RelationInventoryFields', $fields);

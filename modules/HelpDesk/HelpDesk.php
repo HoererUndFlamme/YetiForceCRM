@@ -52,6 +52,11 @@ class HelpDesk extends CRMEntity
 		'Assigned To' => 'assigned_user_id',
 		'FL_TOTAL_TIME_H' => 'sum_time'
 	);
+
+	/**
+	 * @var string[] List of fields in the RelationListView
+	 */
+	public $relationFields = ['ticket_no', 'ticket_title', 'parent_id', 'ticketstatus', 'ticketpriorities', 'assigned_user_id', 'sum_time'];
 	public $list_link_field = 'ticket_title';
 	public $range_fields = Array(
 		'ticketid',
@@ -399,7 +404,7 @@ class HelpDesk extends CRMEntity
 		} elseif ($return_module == 'Products') {
 			$sql = 'UPDATE vtiger_troubletickets SET product_id=? WHERE ticketid=?';
 			$this->db->pquery($sql, array(null, $id));
-		} elseif ($return_module == 'ServiceContracts' && $relatedName != 'get_many_to_many') {
+		} elseif ($return_module == 'ServiceContracts' && $relatedName != 'getManyToMany') {
 			parent::unlinkRelationship($id, $return_module, $return_id);
 		} else {
 			parent::unlinkRelationship($id, $return_module, $return_id, $relatedName);
