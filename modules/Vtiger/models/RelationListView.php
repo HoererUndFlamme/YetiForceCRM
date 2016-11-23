@@ -23,6 +23,10 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		return $this;
 	}
 
+	/**
+	 * Get relation model
+	 * @return Vtiger_Relation_Model
+	 */
 	public function getRelationModel()
 	{
 		return $this->relationModel;
@@ -34,6 +38,10 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		return $this;
 	}
 
+	/**
+	 * Get parent record model
+	 * @return Vtiger_Record_Model
+	 */
 	public function getParentRecordModel()
 	{
 		return $this->parentRecordModel;
@@ -45,6 +53,10 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		return $this;
 	}
 
+	/**
+	 * Function that returns the relation's related module model
+	 * @return Vtiger_Module_Model
+	 */
 	public function getRelatedModuleModel()
 	{
 		return $this->relatedModuleModel;
@@ -169,7 +181,7 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 			$queryGenerator->addCondition('id', $srcRecord, 'n');
 		}
 		$searchParams = $this->get('search_params');
-		if (!$searchParams) {
+		if ($searchParams) {
 			$queryGenerator->parseAdvFilter($searchParams);
 		}
 		$searchKey = $this->get('search_key');
@@ -180,10 +192,15 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		}
 	}
 
-	public function getEntries($pagingModel)
+	/**
+	 * Function to get the related list view entries
+	 * @param Vtiger_Paging_Model $pagingModel
+	 * @return Vtiger_Record_Model[]
+	 */
+	public function getEntries(Vtiger_Paging_Model $pagingModel)
 	{
 		$relationModel = $this->getRelationModel();
-		$relationModule = $relationModel->getRelationModuleModel();
+		$relationModuleModel = $relationModel->getRelationModuleModel();
 		$pageLimit = $pagingModel->getPageLimit();
 		$query = $this->getRelationQuery();
 		if ($pagingModel->get('limit') !== 'no_limit') {
@@ -200,13 +217,12 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 		}
 		$relatedRecordList = [];
 		foreach ($rows as &$row) {
-			$relatedRecordList[$row['id']] = $relationModule->getRecordFromArray($row);
+			$relatedRecordList[$row['id']] = $relationModuleModel->getRecordFromArray($row);
 		}
 		$sql = $query->createCommand()->getRawSql();
-		echo "<code>";
-		var_dump($sql);
-		echo "</code>";
-		exit;
+		//echo "<code>";
+		//var_dump($sql);
+		//echo "</code>";
 		return $relatedRecordList;
 	}
 
@@ -215,42 +231,34 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 	 */
 	public function loadOrderBy()
 	{
-		return;
 		$orderBy = $this->getForSql('orderby');
 		if (!empty($orderBy)) {
-			$columnFieldMapping = $this->getModule()->getColumnFieldMapping();
-			$orderByFieldName = $columnFieldMapping[$orderBy];
-			$this->get('query_generator')->setOrder($orderByFieldName, $this->getForSql('sortorder'));
-		}
-
-		$orderBy = $this->getForSql('orderby');
-		$sortOrder = $this->getForSql('sortorder');
-		if ($orderBy) {
 			$relationModule = $this->getRelationModel()->getRelationModuleModel();
-			$orderByFieldModuleModel = $relationModule->getFieldByColumn($orderBy);
-			if ($orderByFieldModuleModel && $orderByFieldModuleModel->isReferenceField()) {
-				//If reference field then we need to perform a join with crmentity with the related to field
-				$queryComponents = preg_split('/WHERE /i', $query);
-				$selectAndFromClause = $queryComponents[0];
-				$whereCondition = $queryComponents[1];
-				$qualifiedOrderBy = 'vtiger_crmentity' . $orderByFieldModuleModel->get('column');
-				$selectAndFromClause .= ' LEFT JOIN vtiger_crmentity AS ' . $qualifiedOrderBy . ' ON ' .
-					$orderByFieldModuleModel->get('table') . '.' . $orderByFieldModuleModel->get('column') . ' = ' .
-					$qualifiedOrderBy . '.crmid ';
-				$query = sprintf('%s WHERE %s ORDER BY %s.label %s', $selectAndFromClause, $whereCondition, $qualifiedOrderBy, $sortOrder);
-			} elseif ($orderByFieldModuleModel && $orderByFieldModuleModel->isOwnerField()) {
-				$query .= sprintf(' ORDER BY COALESCE(%s,vtiger_groups.groupname) %s', \vtlib\Deprecated::getSqlForNameInDisplayFormat(['first_name' => 'vtiger_users.first_name', 'last_name' => 'vtiger_users.last_name'], 'Users'), $sortOrder);
-			} else {
-				// Qualify the the column name with table to remove ambugity
-				$qualifiedOrderBy = $orderBy;
-				$orderByField = $relationModule->getFieldByColumn($orderBy);
-				if ($orderByField) {
-					$qualifiedOrderBy = $relationModule->getOrderBySql($qualifiedOrderBy);
-				}
-				$query = sprintf("%s ORDER BY %s %s ", $query, $qualifiedOrderBy, $sortOrder);
+			$field = $relationModule->getFieldByColumn($orderBy);
+			if ($field) {
+				$this->get('query_generator')->setOrder($field->getName(), $this->getForSql('sortorder'));
 			}
 		}
-		return $query;
+	}
+
+	/**
+	 * Get header fields
+	 * @return Vtiger_Field_Model[]
+	 */
+	public function getHeaders()
+	{
+		$fields = $this->getRelationModel()->getQueryFields();
+		unset($fields['id']);
+		return $fields;
+	}
+
+	/**
+	 * Function to get Total number of record in this relation
+	 * @return int
+	 */
+	public function getRelatedEntriesCount()
+	{
+		return $this->getRelationQuery()->count();
 	}
 
 	public function getCreateViewUrl()
@@ -397,59 +405,6 @@ class Vtiger_RelationListView_Model extends Vtiger_Base_Model
 			$addLinkModel[] = Vtiger_Link_Model::getInstanceFromValues($addLink);
 		}
 		return $addLinkModel;
-	}
-
-	public function getHeaders()
-	{
-		$relationModel = $this->getRelationModel();
-		$relatedModuleModel = $relationModel->getRelationModuleModel();
-		$relationFields = $relationModel->getRelationFields(true);
-
-		$headerFields = [];
-		if (count($relationFields) > 0) {
-			foreach ($relationFields as $fieldName) {
-				$headerFields[$fieldName] = $relatedModuleModel->getField($fieldName);
-			}
-			return $headerFields;
-		}
-		$summaryFieldsList = $relatedModuleModel->getSummaryViewFieldsList();
-		if (count($summaryFieldsList) > 0) {
-			foreach ($summaryFieldsList as $fieldName => $fieldModel) {
-				$headerFields[$fieldName] = $fieldModel;
-			}
-		} else {
-			$headerFieldNames = $relatedModuleModel->getRelatedListFields();
-			foreach ($headerFieldNames as $fieldName) {
-				$headerFields[$fieldName] = $relatedModuleModel->getField($fieldName);
-			}
-		}
-		return $headerFields;
-	}
-
-	/**
-	 * Function to get Total number of record in this relation
-	 * @return <Integer>
-	 */
-	public function getRelatedEntriesCount()
-	{
-		$db = PearDatabase::getInstance();
-		$relationQuery = $this->getRelationQuery();
-		$relationQuery = preg_replace("/[ \t\n\r]+/", ' ', $relationQuery);
-		$position = stripos($relationQuery, ' FROM ');
-		if ($position) {
-			$split = preg_split('/FROM/i', $relationQuery, 2);
-			$splitCount = count($split);
-			$relationQuery = 'SELECT COUNT(DISTINCT vtiger_crmentity.crmid) AS count';
-			for ($i = 1; $i < $splitCount; $i++) {
-				$relationQuery = $relationQuery . ' FROM ' . $split[$i];
-			}
-		}
-		if (strpos($relationQuery, ' GROUP BY ') !== false) {
-			$parts = explode(' GROUP BY ', $relationQuery);
-			$relationQuery = $parts[0];
-		}
-		$result = $db->query($relationQuery);
-		return $db->getSingleValue($result);
 	}
 
 	/**

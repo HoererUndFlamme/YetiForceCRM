@@ -254,21 +254,21 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 			$queryGenerator->addAndCondition('id', $srcRecord, 'n');
 		}
 		$searchParams = $this->get('search_params');
-		if (!$searchParams) {
+		if ($searchParams) {
 			$queryGenerator->parseAdvFilter($searchParams);
 		}
 		$searchKey = $this->get('search_key');
 		$searchValue = $this->get('search_value');
 		$operator = $this->get('operator');
-		if (!$searchKey) {
+		if ($searchKey) {
 			$queryGenerator->addBaseSearchConditions($searchKey, $searchValue, $operator);
 		}
 		$searchResult = $this->get('searchResult');
-		if (!$searchResult && is_array($searchResult)) {
+		if ($searchResult && is_array($searchResult)) {
 			$queryGenerator->addAndConditionNative(['vtiger_crmentity.crmid' => $searchResult]);
 		}
 		$sourceModule = $this->get('src_module');
-		if (!$sourceModule) {
+		if ($sourceModule) {
 			$moduleModel = $this->getModule();
 			if (method_exists($moduleModel, 'getQueryByModuleField')) {
 				$moduleModel->getQueryByModuleField($sourceModule, $this->get('src_field'), $this->get('src_record'), $queryGenerator);
@@ -282,7 +282,7 @@ class Vtiger_ListView_Model extends Vtiger_Base_Model
 	/**
 	 * Function to get the list view entries
 	 * @param Vtiger_Paging_Model $pagingModel
-	 * @return array - Associative array of record id mapped to Vtiger_Record_Model instance.
+	 * @return Vtiger_Record_Model[] - Associative array of record id mapped to Vtiger_Record_Model instance.
 	 */
 	public function getListViewEntries(Vtiger_Paging_Model $pagingModel)
 	{

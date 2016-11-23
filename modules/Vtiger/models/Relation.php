@@ -20,7 +20,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	const RELATION_O2M = 1;
 	//Many to many and many to one
 	const RELATION_M2M = 2;
-	const RELATIONS_O2M = ['get_dependents_list', 'getDependentsList'];
+	const RELATIONS_O2M = ['getDependentsList'];
 
 	/**
 	 * Function returns the relation id
@@ -277,15 +277,20 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		}
 		$queryGenerator = $this->getQueryGenerator();
 		$entity = $queryGenerator->getEntityModel();
-		if (!empty($entity->list_fields_name)) {
-			foreach ($entity->list_fields_name as &$fieldName) {
+		if (!empty($entity->relationFields)) {
+			// Get fields from entity model
+			foreach ($entity->relationFields as &$fieldName) {
 				$relatedListFields[$fieldName] = $relatedModuleModel->getFieldByName($fieldName);
 			}
 		} else {
+			// Get fields from default CustomView
 			$queryGenerator->initForDefaultCustomView(true, true);
 			foreach ($queryGenerator->getFields() as &$fieldName) {
-				$relatedListFields[$fieldName] = $relatedModuleModel->getFieldByName($fieldName);
+				if ($fieldName !== 'id') {
+					$relatedListFields[$fieldName] = $relatedModuleModel->getFieldByName($fieldName);
+				}
 			}
+			$relatedListFields['id'] = true;
 		}
 		if ($relatedListFields) {
 			$this->set('QueryFields', $relatedListFields);
@@ -371,6 +376,40 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_campaign_records', 'vtiger_campaign_records.campaignid=vtiger_campaign.campaignid']);
 		$queryGenerator->addAndConditionNative(['vtiger_campaign_records.crmid' => $this->get('parentRecord')->getId()]);
+	}
+
+	public function getActivities()
+	{
+		$queryGenerator = $this->getQueryGenerator();
+		$relatedModuleName = $this->getRelationModuleName();
+		$moduleName = $this->getParentModuleModel()->getName();
+		$referenceLinkClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceLink', $relatedModuleName);
+		$referenceLinkInstance = new $referenceLinkClass();
+		if (in_array($moduleName, $referenceLinkInstance->getReferenceList())) {
+			$queryGenerator->addAndConditionNative(['vtiger_activity.link' => $this->get('parentRecord')->getId()]);
+		} else {
+			$referenceProcessClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceProcess', $relatedModuleName);
+			$referenceProcessInstance = new $referenceProcessClass();
+			if (in_array($moduleName, $referenceProcessInstance->getReferenceList())) {
+				$queryGenerator->addAndConditionNative(['vtiger_activity.process' => $this->get('parentRecord')->getId()]);
+			} else {
+				$referenceSubProcessClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceSubProcess', $relatedModuleName);
+				$referenceSubProcessInstance = new $referenceSubProcessClass();
+				if (in_array($moduleName, $referenceSubProcessInstance->getReferenceList())) {
+					$queryGenerator->addAndConditionNative(['vtiger_activity.subprocess' => $this->get('parentRecord')->getId()]);
+				} else {
+					throw new \Exception\AppException('LBL_HANDLER_NOT_FOUND');
+				}
+			}
+		}
+		$time = AppRequest::get('time');
+		if ($time == 'current') {
+			$stateActivityLabels = Calendar_Module_Model::getComponentActivityStateLabel('current');
+			$queryGenerator->addAndConditionNative(['and', ['<>', 'vtiger_activity.activitytype', 'Emails'], ['vtiger_activity.status' => $stateActivityLabels]]);
+		} else if ($time == 'history') {
+			$stateActivityLabels = Calendar_Module_Model::getComponentActivityStateLabel('history');
+			$queryGenerator->addAndConditionNative(['and', ['<>', 'vtiger_activity.activitytype', 'Emails'], ['vtiger_activity.status' => $stateActivityLabels]]);
+		}
 	}
 
 	/**

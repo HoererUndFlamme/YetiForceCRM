@@ -512,9 +512,35 @@ class Vtiger_Module_Model extends \vtlib\Module
 	}
 
 	/**
+	 * Function to get the field mode
+	 * @param string $fieldName - field name
+	 * @return Vtiger_Field_Model
+	 */
+	public function getField($fieldName)
+	{
+		return Vtiger_Field_Model::getInstance($fieldName, $this);
+	}
+
+	/**
+	 * Function to get the field by column name.
+	 * @param string $columnName - column name
+	 * @return Vtiger_Field_Model
+	 */
+	public function getFieldByColumn($columnName)
+	{
+		foreach ($this->getFields() as &$field) {
+			if ($field->get('column') === $columnName) {
+				return $field;
+			}
+		}
+		return NULL;
+	}
+
+	/**
 	 * Get field by field name
 	 * @param string $fieldName
 	 * @return Vtiger_Field_Model
+	 * @throws \Exception\AppException
 	 */
 	public function getFieldByName($fieldName)
 	{
@@ -524,12 +550,13 @@ class Vtiger_Module_Model extends \vtlib\Module
 		if (isset($this->fields[$fieldName])) {
 			return $this->fields[$fieldName];
 		}
-		return false;
+		App\Log::error("Field does not exist: $fieldName in " . __METHOD__);
+		throw new \Exception\AppException('LBL_FIELD_DOES_NOT_EXIST');
 	}
 
 	/**
 	 * Function gives fields based on the type
-	 * @param <String> $type - field type
+	 * @param string $type - field type
 	 * @return Vtiger_Field_Model[] - list of field models
 	 */
 	public function getFieldsByType($type)
@@ -539,8 +566,7 @@ class Vtiger_Module_Model extends \vtlib\Module
 		}
 		$fieldList = [];
 		foreach ($this->getFields() as &$field) {
-			$fieldType = $field->getFieldDataType();
-			if (in_array($fieldType, $type)) {
+			if (in_array($field->getFieldDataType(), $type)) {
 				$fieldList[$field->getName()] = $field;
 			}
 		}
@@ -623,18 +649,6 @@ class Vtiger_Module_Model extends \vtlib\Module
 	}
 
 	/**
-	 * Function returns all the relation models
-	 * @return <Array of Vtiger_Relation_Model>
-	 */
-	public function getRelations()
-	{
-		if (empty($this->relations)) {
-			$this->relations = Vtiger_Relation_Model::getAllRelations($this);
-		}
-		return $this->relations;
-	}
-
-	/**
 	 * Function that returns all the quickcreate fields for the module
 	 * @return <Array of Vtiger_Field_Model> - list of field models
 	 */
@@ -662,31 +676,15 @@ class Vtiger_Module_Model extends \vtlib\Module
 	}
 
 	/**
-	 * Function to get the field mode
-	 * @param <String> $fieldName - field name
-	 * @return <Vtiger_Field_Model>
+	 * Function returns all the relation models
+	 * @return Vtiger_Relation_Model[]
 	 */
-	public function getField($fieldName)
+	public function getRelations()
 	{
-		return Vtiger_Field_Model::getInstance($fieldName, $this);
-	}
-
-	/**
-	 * Function to get the field by column name.
-	 * @param <String> $columnName - column name
-	 * @return <Vtiger_Field_Model>
-	 */
-	public function getFieldByColumn($columnName)
-	{
-		$fields = $this->getFields();
-		if ($fields) {
-			foreach ($fields as $field) {
-				if ($field->get('column') == $columnName) {
-					return $field;
-				}
-			}
+		if (empty($this->relations)) {
+			$this->relations = Vtiger_Relation_Model::getAllRelations($this);
 		}
-		return NULL;
+		return $this->relations;
 	}
 
 	/**
@@ -764,26 +762,6 @@ class Vtiger_Module_Model extends \vtlib\Module
 	{
 		$entityInstance = CRMEntity::getInstance($this->getName());
 		return $entityInstance->search_fields_name;
-	}
-
-	/**
-	 * Function that returns related list header fields that will be showed in the Related List View
-	 * @return <Array> returns related fields list.
-	 */
-	public function getRelatedListFields()
-	{
-		$entityInstance = CRMEntity::getInstance($this->getName());
-		$list_fields_name = $entityInstance->list_fields_name;
-		$list_fields = $entityInstance->list_fields;
-		$relatedListFields = [];
-		foreach ($list_fields as $key => $fieldInfo) {
-			foreach ($fieldInfo as $columnName) {
-				if (array_key_exists($key, $list_fields_name)) {
-					$relatedListFields[$columnName] = $list_fields_name[$key];
-				}
-			}
-		}
-		return $relatedListFields;
 	}
 
 	/**
@@ -1013,7 +991,7 @@ class Vtiger_Module_Model extends \vtlib\Module
 		$userPrivilegesModel = Users_Privileges_Model::getCurrentUserPrivilegesModel();
 
 		$quickLinks = [
-				[
+			[
 				'linktype' => 'SIDEBARLINK',
 				'linklabel' => 'LBL_RECORDS_LIST',
 				'linkurl' => $this->getListViewUrl(),
@@ -1509,6 +1487,9 @@ class Vtiger_Module_Model extends \vtlib\Module
 			case 'get_many_to_many':
 				$query = $this->getRelationQueryM2M($recordId, $relatedModule, $relationModel);
 				break;
+			/**
+			 * @todo To remove after rebuilding relations
+			 */
 			case 'get_activities':
 				$query = $this->getRelationQueryForActivities($recordId, $relatedModule, $relationModel);
 				break;
@@ -1752,6 +1733,9 @@ class Vtiger_Module_Model extends \vtlib\Module
 		return $query;
 	}
 
+	/**
+	 * @todo To remove after rebuilding relations
+	 */
 	public function getRelationQueryForActivities($recordId, $relatedModule, $relationModel)
 	{
 		$currentUser = Users_Privileges_Model::getCurrentUserModel();
