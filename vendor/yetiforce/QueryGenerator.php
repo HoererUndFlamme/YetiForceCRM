@@ -250,6 +250,17 @@ class QueryGenerator
 	}
 
 	/**
+	 * Set order
+	 * @param string $fieldName
+	 * @param string $order ASC/DESC
+	 */
+	public function setOrder($fieldName, $order = false)
+	{
+		$queryField = $this->getQueryField($fieldName);
+		$this->order = array_merge($this->order, $queryField->getOrderBy($order));
+	}
+
+	/**
 	 * Get fields module
 	 * @return array
 	 */
@@ -419,7 +430,10 @@ class QueryGenerator
 			return false;
 		}
 		foreach ($advFilterList as $group => &$filters) {
-			$functionName = ($group === 'and' ? 'addAndCondition' : 'addOrCondition');
+			$functionName = ($group === 'and' || $group === 1) ? 'addAndCondition' : 'addOrCondition';
+			if (isset($filters['columns'])) {
+				$filters = $filters['columns'];
+			}
 			foreach ($filters as &$filter) {
 				list ($tableName, $columnName, $fieldName, $moduleFieldLabel, $fieldType) = explode(':', $filter['columnname']);
 				if (empty($fieldName) && $columnName === 'crmid' && $tableName === 'vtiger_crmentity') {
@@ -684,17 +698,6 @@ class QueryGenerator
 		}
 		$queryField = new $className($this, $field);
 		return $this->queryFields[$fieldName] = $queryField;
-	}
-
-	/**
-	 * Set order
-	 * @param string $fieldName
-	 * @param string $order ASC/DESC
-	 */
-	public function setOrder($fieldName, $order = false)
-	{
-		$queryField = $this->getQueryField($fieldName);
-		$this->order = array_merge($this->order, $queryField->getOrderBy($order));
 	}
 
 	/**

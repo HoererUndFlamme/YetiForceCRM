@@ -12,52 +12,6 @@ class PriceBooks_Module_Model extends Vtiger_Module_Model
 {
 
 	/**
-	 * Function returns query for PriceBook-Product relation
-	 * @param <Vtiger_Record_Model> $recordModel
-	 * @param <Vtiger_Record_Model> $relatedModuleModel
-	 * @return <String>
-	 */
-	public function get_pricebook_products($recordModel, $relatedModuleModel)
-	{
-		$query = 'SELECT vtiger_products.productid, vtiger_products.productname, vtiger_products.productcode, vtiger_products.commissionrate,
-						vtiger_products.qty_per_unit, vtiger_products.unit_price, vtiger_crmentity.crmid, vtiger_crmentity.smownerid,
-						vtiger_pricebookproductrel.listprice
-				FROM vtiger_products
-				INNER JOIN vtiger_pricebookproductrel ON vtiger_products.productid = vtiger_pricebookproductrel.productid
-				INNER JOIN vtiger_crmentity on vtiger_crmentity.crmid = vtiger_products.productid
-				INNER JOIN vtiger_pricebook on vtiger_pricebook.pricebookid = vtiger_pricebookproductrel.pricebookid
-				INNER JOIN vtiger_productcf on vtiger_productcf.productid = vtiger_products.productid
-				LEFT JOIN vtiger_users ON vtiger_users.id=vtiger_crmentity.smownerid
-				LEFT JOIN vtiger_groups ON vtiger_groups.groupid = vtiger_crmentity.smownerid '
-			. Users_Privileges_Model::getNonAdminAccessControlQuery($relatedModuleModel->getName()) . '
-				WHERE vtiger_pricebook.pricebookid = ' . $recordModel->getId() . ' and vtiger_crmentity.deleted = 0';
-		return $query;
-	}
-
-	/**
-	 * Function returns query for PriceBooks-Services Relationship
-	 * @param <Vtiger_Record_Model> $recordModel
-	 * @param <Vtiger_Record_Model> $relatedModuleModel
-	 * @return <String>
-	 */
-	public function get_pricebook_services($recordModel, $relatedModuleModel)
-	{
-		$query = 'SELECT vtiger_service.serviceid, vtiger_service.servicename, vtiger_service.service_no, vtiger_service.commissionrate,
-					vtiger_service.qty_per_unit, vtiger_service.unit_price, vtiger_crmentity.crmid, vtiger_crmentity.smownerid,
-					vtiger_pricebookproductrel.listprice
-			FROM vtiger_service
-			INNER JOIN vtiger_pricebookproductrel on vtiger_service.serviceid = vtiger_pricebookproductrel.productid
-			INNER JOIN vtiger_crmentity on vtiger_crmentity.crmid = vtiger_service.serviceid
-			INNER JOIN vtiger_pricebook on vtiger_pricebook.pricebookid = vtiger_pricebookproductrel.pricebookid
-			INNER JOIN vtiger_servicecf on vtiger_servicecf.serviceid = vtiger_service.serviceid
-			LEFT JOIN vtiger_users ON vtiger_users.id=vtiger_crmentity.smownerid
-			LEFT JOIN vtiger_groups ON vtiger_groups.groupid = vtiger_crmentity.smownerid '
-			. Users_Privileges_Model::getNonAdminAccessControlQuery($relatedModuleModel->getName()) . '
-			WHERE vtiger_pricebook.pricebookid = ' . $recordModel->getId() . ' and vtiger_crmentity.deleted = 0';
-		return $query;
-	}
-
-	/**
 	 * Function to get list view query for popup window
 	 * @param string $sourceModule Parent module
 	 * @param string $field parent fieldname
@@ -87,7 +41,7 @@ class PriceBooks_Module_Model extends Vtiger_Module_Model
 
 	/**
 	 * Function to check whether the module is summary view supported
-	 * @return <Boolean> - true/false
+	 * @return boolean - true/false
 	 */
 	public function isSummaryViewSupported()
 	{
@@ -95,29 +49,18 @@ class PriceBooks_Module_Model extends Vtiger_Module_Model
 	}
 
 	/**
-	 * Funtion that returns fields that will be showed in the record selection popup
-	 * @return <Array of fields>
+	 * Function to get popup view fields
+	 * @param string|boolean $sourceModule
+	 * @return string[]
 	 */
 	public function getPopupViewFieldsList($sourceModule = false)
 	{
-		if (!empty($sourceModule)) {
-			$parentRecordModel = Vtiger_Module_Model::getInstance($sourceModule);
-			$relationModel = Vtiger_Relation_Model::getInstance($parentRecordModel, $this);
-		}
-		$popupFields = array();
-		if ($relationModel) {
-			$popupFields = $relationModel->getRelationFields(true);
-		}
-		if (count($popupFields) == 0) {
-			$popupFileds = $this->getSummaryViewFieldsList();
-			$reqPopUpFields = array('Currency' => 'currency_id');
-			foreach ($reqPopUpFields as $fieldLabel => $fieldName) {
-				$fieldModel = Vtiger_Field_Model::getInstance($fieldName, $this);
-				if ($fieldModel->getPermissions(false)) {
-					$popupFileds[$fieldName] = $fieldModel;
-				}
+		$popupFields = parent::getPopupViewFieldsList($sourceModule);
+		if (!isset($popupFields['currency_id'])) {
+			$fieldModel = Vtiger_Field_Model::getInstance('currency_id', $this);
+			if ($fieldModel->getPermissions()) {
+				$popupFields['currency_id'] = 'currency_id';
 			}
-			$popupFields = array_keys($popupFileds);
 		}
 		return $popupFields;
 	}

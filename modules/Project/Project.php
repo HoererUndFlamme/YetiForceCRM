@@ -57,13 +57,13 @@ class Project extends CRMEntity
 		'Status' => 'projectstatus',
 		'Type' => 'projecttype',
 		'Assigned To' => 'assigned_user_id',
-		'Total time [Sum]' => 'sum_time_all'
+		'Total time [Sum]' => 'sum_time'
 	);
 
 	/**
 	 * @var string[] List of fields in the RelationListView
 	 */
-	public $relationFields = ['projectname', 'startdate', 'projectstatus', 'projecttype', 'assigned_user_id', 'sum_time_all'];
+	public $relationFields = ['projectname', 'startdate', 'projectstatus', 'projecttype', 'assigned_user_id', 'sum_time'];
 	// Make the field link to detail view from list view (Fieldname)
 	public $list_link_field = 'projectname';
 	// For Popup listview and UI type support
@@ -345,15 +345,6 @@ class Project extends CRMEntity
 				}
 			}
 
-			// Add Gnatt chart to the related list of the module
-			$relation_id = $adb->getUniqueID('vtiger_relatedlists');
-			$max_sequence = 0;
-			$result = $adb->query("SELECT max(sequence) as maxsequence FROM vtiger_relatedlists WHERE tabid=$projectTabid");
-			if ($adb->num_rows($result))
-				$max_sequence = $adb->query_result($result, 0, 'maxsequence');
-			$sequence = $max_sequence + 1;
-			$adb->pquery("INSERT INTO vtiger_relatedlists(relation_id,tabid,related_tabid,name,sequence,label,presence) VALUES(?,?,?,?,?,?,?)", array($relation_id, $projectTabid, 0, 'get_gantt_chart', $sequence, 'Charts', 0));
-
 			// Add Project module to the related list of Accounts module
 			$accountsModuleInstance = vtlib\Module::getInstance('Accounts');
 			$accountsModuleInstance->setRelatedList($moduleInstance, 'Projects', Array('ADD', 'SELECT'), 'getDependentsList');
@@ -387,15 +378,6 @@ class Project extends CRMEntity
 
 			$projectsResult = $adb->pquery('SELECT tabid FROM vtiger_tab WHERE name=?', array('Project'));
 			$projectTabid = $adb->query_result($projectsResult, 0, 'tabid');
-
-			// Add Gnatt chart to the related list of the module
-			$relation_id = $adb->getUniqueID('vtiger_relatedlists');
-			$max_sequence = 0;
-			$result = $adb->query("SELECT max(sequence) as maxsequence FROM vtiger_relatedlists WHERE tabid=$projectTabid");
-			if ($adb->num_rows($result))
-				$max_sequence = $adb->query_result($result, 0, 'maxsequence');
-			$sequence = $max_sequence + 1;
-			$adb->pquery("INSERT INTO vtiger_relatedlists(relation_id,tabid,related_tabid,name,sequence,label,presence) VALUES(?,?,?,?,?,?,?)", array($relation_id, $projectTabid, 0, 'get_gantt_chart', $sequence, 'Charts', 0));
 
 			// Add Comments widget to Project module
 			$modcommentsModuleInstance = vtlib\Module::getInstance('ModComments');

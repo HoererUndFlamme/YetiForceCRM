@@ -20,10 +20,10 @@ class Products_Module_Model extends Vtiger_Module_Model
 	 * @param \App\QueryGenerator $queryGenerator
 	 * @param boolean $skipSelected
 	 */
-	public function getQueryByModuleField($sourceModule, $field, $record, \App\QueryGenerator $queryGenerator, $skipSelected = false)
+	public function getQueryByModuleField($sourceModule, $field, $record, \App\QueryGenerator $queryGenerator)
 	{
-		$supportedModulesList = array($this->getName(), 'Vendors', 'Leads', 'Accounts', 'Contacts');
-		if (($sourceModule == 'PriceBooks' && $field == 'priceBookRelatedList') || in_array($sourceModule, $supportedModulesList) || in_array($sourceModule, getInventoryModules())) {
+		$supportedModulesList = array($this->getName(), 'Vendors', 'Leads', 'Accounts');
+		if (($sourceModule == 'PriceBooks' && $field == 'priceBookRelatedList') || in_array($sourceModule, $supportedModulesList) || Vtiger_Module_Model::getInstance($sourceModule)->isInventory()) {
 			$condition = ['and', ['vtiger_products.discontinued' => 1]];
 			if ($sourceModule === $this->getName()) {
 				$subQuery = (new App\Db\Query())
@@ -45,12 +45,6 @@ class Products_Module_Model extends Vtiger_Module_Model
 				$condition [] = ['not in', 'vtiger_products.productid', $subQuery];
 			} elseif ($sourceModule === 'Vendors') {
 				$condition [] = ['<>', 'vtiger_products.vendor_id', $record];
-			} elseif (in_array($sourceModule, $supportedModulesList) && $skipSelected === false) {
-				$subQuery = (new App\Db\Query())
-					->select(['productid'])
-					->from('vtiger_seproductsrel')
-					->where(['crmid' => $record]);
-				$condition [] = ['not in', 'vtiger_products.productid', $subQuery];
 			}
 			$queryGenerator->addAndConditionNative($condition);
 		}
@@ -83,7 +77,7 @@ class Products_Module_Model extends Vtiger_Module_Model
 
 	/**
 	 * Function to check whether the module is summary view supported
-	 * @return <Boolean> - true/false
+	 * @return boolean - true/false
 	 */
 	public function isSummaryViewSupported()
 	{
@@ -93,9 +87,9 @@ class Products_Module_Model extends Vtiger_Module_Model
 	/**
 	 * Function searches the records in the module, if parentId & parentModule
 	 * is given then searches only those records related to them.
-	 * @param <String> $searchValue - Search value
+	 * @param string $searchValue - Search value
 	 * @param <Integer> $parentId - parent recordId
-	 * @param <String> $parentModule - parent module name
+	 * @param string $parentModule - parent module name
 	 * @return <Array of Vtiger_Record_Model>
 	 */
 	public function searchRecord($searchValue, $parentId = false, $parentModule = false, $relatedModule = false)
@@ -107,28 +101,5 @@ class Products_Module_Model extends Vtiger_Module_Model
 		}
 
 		return $matchingRecords;
-	}
-
-	/**
-	 * Function returns query for Product-PriceBooks relation
-	 * @param <Vtiger_Record_Model> $recordModel
-	 * @param <Vtiger_Record_Model> $relatedModuleModel
-	 * @return <String>
-	 */
-	public function get_product_pricebooks($recordModel, $relatedModuleModel)
-	{
-		$query = 'SELECT vtiger_pricebook.pricebookid, vtiger_pricebook.bookname, vtiger_pricebook.active, vtiger_crmentity.crmid, 
-						vtiger_crmentity.smownerid, vtiger_pricebookproductrel.listprice, vtiger_products.unit_price
-					FROM vtiger_pricebook
-					INNER JOIN vtiger_pricebookproductrel ON vtiger_pricebook.pricebookid = vtiger_pricebookproductrel.pricebookid
-					INNER JOIN vtiger_crmentity on vtiger_crmentity.crmid = vtiger_pricebook.pricebookid
-					INNER JOIN vtiger_products on vtiger_products.productid = vtiger_pricebookproductrel.productid
-					INNER JOIN vtiger_pricebookcf on vtiger_pricebookcf.pricebookid = vtiger_pricebook.pricebookid
-					LEFT JOIN vtiger_users ON vtiger_users.id=vtiger_crmentity.smownerid
-					LEFT JOIN vtiger_groups ON vtiger_groups.groupid = vtiger_crmentity.smownerid '
-			. Users_Privileges_Model::getNonAdminAccessControlQuery($relatedModuleModel->getName()) . '
-					WHERE vtiger_products.productid = ' . $recordModel->getId() . ' and vtiger_crmentity.deleted = 0';
-
-		return $query;
 	}
 }

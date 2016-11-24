@@ -167,6 +167,9 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	 */
 	public function getQueryGenerator()
 	{
+		if (!$this->has('query_generator')) {
+			$this->set('query_generator', new \App\QueryGenerator($this->getRelationModuleName()));
+		}
 		return $this->get('query_generator');
 	}
 
@@ -407,13 +410,13 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 				}
 			}
 		}
-		$time = AppRequest::get('time');
-		if ($time == 'current') {
-			$stateActivityLabels = Calendar_Module_Model::getComponentActivityStateLabel('current');
-			$queryGenerator->addAndConditionNative(['and', ['<>', 'vtiger_activity.activitytype', 'Emails'], ['vtiger_activity.status' => $stateActivityLabels]]);
-		} else if ($time == 'history') {
-			$stateActivityLabels = Calendar_Module_Model::getComponentActivityStateLabel('history');
-			$queryGenerator->addAndConditionNative(['and', ['<>', 'vtiger_activity.activitytype', 'Emails'], ['vtiger_activity.status' => $stateActivityLabels]]);
+		switch (AppRequest::get('time')) {
+			case 'current':
+				$queryGenerator->addAndConditionNative(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('current')]);
+				break;
+			case 'history':
+				$queryGenerator->addAndConditionNative(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('history')]);
+				break;
 		}
 	}
 
@@ -435,6 +438,18 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_ossmailview_relation', 'vtiger_ossmailview_relation.crmid = vtiger_crmentity.crmid']);
 		$queryGenerator->addAndConditionNative(['vtiger_ossmailview_relation.ossmailviewid' => $this->get('parentRecord')->getId()]);
+	}
+
+	/**
+	 * Get many to many
+	 */
+	public function getManyToMany()
+	{
+		$queryGenerator = $this->getQueryGenerator();
+		$relatedModuleName = $this->getRelationModuleName();
+		$referenceInfo = Vtiger_Relation_Model::getReferenceTableInfo($relatedModuleName, $this->getParentModuleModel()->getName());
+		$queryGenerator->addJoin(['INNER JOIN', $referenceInfo['table'], $referenceInfo['table'] . '.' . $referenceInfo['rel'] . ' = vtiger_crmentity.crmid']);
+		$queryGenerator->addAndConditionNative([$referenceInfo['table'] . '.' . $referenceInfo['base'] => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -462,19 +477,10 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$this->set('RelationInventoryFields', $fields);
 		return $fields;
 	}
-	/**
-	 * 
-	 * 
-	 * 
-	 * 
-	 * 
-	 * 
-	 * 
-	 */
 
 	/**
 	 * Function which will specify whether the relation is editable
-	 * @return <Boolean>
+	 * @return boolean
 	 */
 	public function isEditable()
 	{
@@ -483,7 +489,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 
 	/**
 	 * Function which will specify whether the relation is deletable
-	 * @return <Boolean>
+	 * @return boolean
 	 */
 	public function isDeletable()
 	{
