@@ -132,7 +132,7 @@ class Record
 					}
 				}
 			}
-			$paramsCol[] = $idColumn . ' AS id';
+			$paramsCol['id'] = $idColumn;
 			$query->select($paramsCol)->from($table);
 			\App\Cache::staticSave($cacheName, $moduleName, $query);
 		} else {
@@ -225,7 +225,7 @@ class Record
 	public static function isExists($recordId, $moduleName = false)
 	{
 		$recordMetaData = Functions::getCRMRecordMetadata($recordId);
-		return (isset($recordMetaData) && $recordMetaData['deleted'] === 0 && ($moduleName ? $recordMetaData['setype'] === $moduleName : true)) ? true : false;
+		return (isset($recordMetaData) && $recordMetaData['deleted'] === 0 && ($moduleName ? $recordMetaData['setype'] === \App\Module::getTabName($moduleName) : true)) ? true : false;
 	}
 
 	public static function getType($recordId)
