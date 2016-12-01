@@ -19,13 +19,11 @@ class Vtiger_Block_Model extends vtlib\Block
 		if (empty($this->fields)) {
 			$moduleFields = Vtiger_Field_Model::getAllForModule($this->module);
 			$this->fields = [];
-
 			// if block does not contains any fields 
 			if (!isset($moduleFields[$this->id])) {
 				$moduleFields[$this->id] = [];
 			}
-
-			foreach ($moduleFields[$this->id] as $field) {
+			foreach ($moduleFields[$this->id] as &$field) {
 				$this->fields[$field->get('name')] = $field;
 			}
 		}
@@ -81,8 +79,8 @@ class Vtiger_Block_Model extends vtlib\Block
 		if (count($hideBlocks) == 0) {
 			return true;
 		}
-		require_once("modules/com_vtiger_workflow/VTJsonCondition.inc");
-		require_once("modules/com_vtiger_workflow/VTEntityCache.inc");
+		require_once("modules/com_vtiger_workflow/VTJsonCondition.php");
+		require_once("modules/com_vtiger_workflow/VTEntityCache.php");
 		require_once("modules/com_vtiger_workflow/VTWorkflowUtils.php");
 		$conditionStrategy = new VTJsonCondition();
 		$currentUser = Users_Record_Model::getCurrentUserModel();
@@ -187,7 +185,7 @@ class Vtiger_Block_Model extends vtlib\Block
 		$db = PearDatabase::getInstance();
 		$query = 'UPDATE vtiger_blocks SET sequence = CASE blockid ';
 		foreach ($sequenceList as $blockId => $sequence) {
-			$query .=' WHEN ' . $blockId . ' THEN ' . $sequence;
+			$query .= ' WHEN ' . $blockId . ' THEN ' . $sequence;
 		}
 		$query .= sprintf(' END WHERE blockid IN (%s)', generateQuestionMarks($sequenceList));
 		$db->pquery($query, array_keys($sequenceList));
@@ -229,17 +227,11 @@ class Vtiger_Block_Model extends vtlib\Block
 	/**
 	 * Function to check whether duplicate exist or not
 	 * @param string $blockLabel
-	 * @param <Number> ModuleId
+	 * @param number ModuleId
 	 * @return boolean true/false
 	 */
 	public static function checkDuplicate($blockLabel, $tabId)
 	{
-		$db = PearDatabase::getInstance();
-
-		$result = $db->pquery('SELECT 1 FROM vtiger_blocks WHERE blocklabel = ? && tabid = ?', array($blockLabel, $tabId));
-		if ($db->num_rows($result)) {
-			return true;
-		}
-		return false;
+		return (new \App\Db\Query())->from('vtiger_blocks')->where(['blocklabel' => $blockLabel, 'tabid' => $tabId])->exists();
 	}
 }

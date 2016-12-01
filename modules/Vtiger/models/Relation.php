@@ -345,7 +345,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	public function getDependentsList()
 	{
 		$fieldModel = $this->getRelationField(true);
-		$this->getQueryGenerator()->addAndConditionNative([
+		$this->getQueryGenerator()->addNativeCondition([
 			$fieldModel->getTableName() . '.' . $fieldModel->getColumnName() => $this->get('parentRecord')->getId()
 		]);
 	}
@@ -358,7 +358,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$queryGenerator = $this->getQueryGenerator();
 		$record = $this->get('parentRecord')->getId();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_crmentityrel', '(vtiger_crmentityrel.relcrmid = vtiger_crmentity.crmid OR vtiger_crmentityrel.crmid = vtiger_crmentity.crmid)']);
-		$queryGenerator->addAndConditionNative(['or', ['vtiger_crmentityrel.crmid' => $record], ['vtiger_crmentityrel.relcrmid' => $record]]);
+		$queryGenerator->addNativeCondition(['or', ['vtiger_crmentityrel.crmid' => $record], ['vtiger_crmentityrel.relcrmid' => $record]]);
 	}
 
 	/**
@@ -369,7 +369,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_senotesrel', 'vtiger_senotesrel.notesid= vtiger_notes.notesid']);
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_crmentity crm2', 'crm2.crmid = vtiger_senotesrel.crmid']);
-		$queryGenerator->addAndConditionNative(['crm2.crmid' => $this->get('parentRecord')->getId()]);
+		$queryGenerator->addNativeCondition(['crm2.crmid' => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -379,7 +379,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	{
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_campaign_records', 'vtiger_campaign_records.campaignid=vtiger_campaign.campaignid']);
-		$queryGenerator->addAndConditionNative(['vtiger_campaign_records.crmid' => $this->get('parentRecord')->getId()]);
+		$queryGenerator->addNativeCondition(['vtiger_campaign_records.crmid' => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -394,17 +394,17 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$referenceLinkClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceLink', $relatedModuleName);
 		$referenceLinkInstance = new $referenceLinkClass();
 		if (in_array($moduleName, $referenceLinkInstance->getReferenceList())) {
-			$queryGenerator->addAndConditionNative(['vtiger_activity.link' => $this->get('parentRecord')->getId()]);
+			$queryGenerator->addNativeCondition(['vtiger_activity.link' => $this->get('parentRecord')->getId()]);
 		} else {
 			$referenceProcessClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceProcess', $relatedModuleName);
 			$referenceProcessInstance = new $referenceProcessClass();
 			if (in_array($moduleName, $referenceProcessInstance->getReferenceList())) {
-				$queryGenerator->addAndConditionNative(['vtiger_activity.process' => $this->get('parentRecord')->getId()]);
+				$queryGenerator->addNativeCondition(['vtiger_activity.process' => $this->get('parentRecord')->getId()]);
 			} else {
 				$referenceSubProcessClass = Vtiger_Loader::getComponentClassName('UIType', 'ReferenceSubProcess', $relatedModuleName);
 				$referenceSubProcessInstance = new $referenceSubProcessClass();
 				if (in_array($moduleName, $referenceSubProcessInstance->getReferenceList())) {
-					$queryGenerator->addAndConditionNative(['vtiger_activity.subprocess' => $this->get('parentRecord')->getId()]);
+					$queryGenerator->addNativeCondition(['vtiger_activity.subprocess' => $this->get('parentRecord')->getId()]);
 				} else {
 					throw new \Exception\AppException('LBL_HANDLER_NOT_FOUND');
 				}
@@ -412,10 +412,10 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		}
 		switch (AppRequest::get('time')) {
 			case 'current':
-				$queryGenerator->addAndConditionNative(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('current')]);
+				$queryGenerator->addNativeCondition(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('current')]);
 				break;
 			case 'history':
-				$queryGenerator->addAndConditionNative(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('history')]);
+				$queryGenerator->addNativeCondition(['vtiger_activity.status' => Calendar_Module_Model::getComponentActivityStateLabel('history')]);
 				break;
 		}
 	}
@@ -427,7 +427,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	{
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_ossmailview_relation', 'vtiger_ossmailview_relation.ossmailviewid = vtiger_ossmailview.ossmailviewid']);
-		$queryGenerator->addAndConditionNative(['vtiger_ossmailview_relation.crmid' => $this->get('parentRecord')->getId()]);
+		$queryGenerator->addNativeCondition(['vtiger_ossmailview_relation.crmid' => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -437,7 +437,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 	{
 		$queryGenerator = $this->getQueryGenerator();
 		$queryGenerator->addJoin(['INNER JOIN', 'vtiger_ossmailview_relation', 'vtiger_ossmailview_relation.crmid = vtiger_crmentity.crmid']);
-		$queryGenerator->addAndConditionNative(['vtiger_ossmailview_relation.ossmailviewid' => $this->get('parentRecord')->getId()]);
+		$queryGenerator->addNativeCondition(['vtiger_ossmailview_relation.ossmailviewid' => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -449,7 +449,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 		$relatedModuleName = $this->getRelationModuleName();
 		$referenceInfo = Vtiger_Relation_Model::getReferenceTableInfo($relatedModuleName, $this->getParentModuleModel()->getName());
 		$queryGenerator->addJoin(['INNER JOIN', $referenceInfo['table'], $referenceInfo['table'] . '.' . $referenceInfo['rel'] . ' = vtiger_crmentity.crmid']);
-		$queryGenerator->addAndConditionNative([$referenceInfo['table'] . '.' . $referenceInfo['base'] => $this->get('parentRecord')->getId()]);
+		$queryGenerator->addNativeCondition([$referenceInfo['table'] . '.' . $referenceInfo['base'] => $this->get('parentRecord')->getId()]);
 	}
 
 	/**
@@ -553,24 +553,21 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 
 	public function addRelTree($crmid, $tree)
 	{
-		$sourceModule = $this->getParentModuleModel();
-		$currentUserModel = Users_Record_Model::getCurrentUserModel();
-		$db = PearDatabase::getInstance();
-		$db->insert('u_yf_crmentity_rel_tree', [
+		App\Db::getInstance()->createCommand()->insert('u_#__crmentity_rel_tree', [
 			'crmid' => $crmid,
 			'tree' => $tree,
-			'module' => $sourceModule->getId(),
+			'module' => $this->getParentModuleModel()->getId(),
 			'relmodule' => $this->getRelationModuleModel()->getId(),
-			'rel_created_user' => $currentUserModel->getId(),
+			'rel_created_user' => App\User::getCurrentUserId(),
 			'rel_created_time' => date('Y-m-d H:i:s')
-		]);
+		])->execute();
 	}
 
 	public function deleteRelTree($crmid, $tree)
 	{
-		$sourceModule = $this->getParentModuleModel();
-		$db = PearDatabase::getInstance();
-		$db->delete('u_yf_crmentity_rel_tree', 'crmid = ? && tree = ? && module = ? && relmodule = ?', [$crmid, $tree, $sourceModule->getId(), $this->getRelationModuleModel()->getId()]);
+		App\Db::getInstance()->createCommand()
+				->delete('u_#__crmentity_rel_tree', ['crmid' => $crmid, 'tree' => $tree, 'module' => $this->getParentModuleModel()->getId(), 'relmodule' => $this->getRelationModuleModel()->getId()])
+				->execute();
 	}
 
 	public function isDirectRelation()
@@ -729,31 +726,31 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 
 	public static function updateModuleRelatedFields($relationId, $fields)
 	{
-		$db = PearDatabase::getInstance();
-		$db->delete('vtiger_relatedlists_fields', 'relation_id = ?', [$relationId]);
+		$db = \App\Db::getInstance();
+		$db->createCommand()->delete('vtiger_relatedlists_fields', ['relation_id' => $relationId])->execute();
 		if ($fields) {
 			foreach ($fields as $key => $field) {
-				$db->insert('vtiger_relatedlists_fields', [
+				$db->createCommand()->insert('vtiger_relatedlists_fields', [
 					'relation_id' => $relationId,
 					'fieldid' => $field['id'],
 					'fieldname' => $field['name'],
 					'sequence' => $key
-				]);
+				])->execute();
 			}
 		}
 	}
 
 	public static function updateModuleRelatedInventoryFields($relationId, $fields)
 	{
-		$db = PearDatabase::getInstance();
-		$db->delete('a_yf_relatedlists_inv_fields', 'relation_id = ?', [$relationId]);
+		$db = \App\Db::getInstance('admin');
+		$db->createCommand()->delete('a_#__relatedlists_inv_fields', ['relation_id' => $relationId])->execute();
 		if ($fields) {
 			foreach ($fields as $key => $field) {
-				$db->insert('a_yf_relatedlists_inv_fields', [
+				$db->createCommand()->insert('a_#__relatedlists_inv_fields', [
 					'relation_id' => $relationId,
 					'fieldname' => $field,
 					'sequence' => $key
-				]);
+				])->execute();
 			}
 		}
 	}
@@ -827,9 +824,7 @@ class Vtiger_Relation_Model extends Vtiger_Base_Model
 
 	public static function updateStateFavorites($relationId, $status)
 	{
-		$adb = PearDatabase::getInstance();
-		$query = 'UPDATE vtiger_relatedlists SET `favorites` = ? WHERE `relation_id` = ?;';
-		$result = $adb->pquery($query, [$status, $relationId]);
+		\App\Db::getInstance()->createCommand()->update('vtiger_relatedlists', ['favorites' => $status], ['relation_id' => $relationId])->execute();
 	}
 
 	public function isFavorites()

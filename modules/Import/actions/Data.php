@@ -16,8 +16,7 @@ require_once 'include/Webservices/Revise.php';
 require_once 'include/Webservices/Retrieve.php';
 require_once 'include/Webservices/DataTransform.php';
 require_once 'modules/Vtiger/CRMEntity.php';
-require_once 'include/QueryGenerator/QueryGenerator.php';
-require_once 'include/events/include.inc';
+require_once 'include/events/include.php';
 
 class Import_Data_Action extends Vtiger_Action_Controller
 {
@@ -177,8 +176,6 @@ class Import_Data_Action extends Vtiger_Action_Controller
 		$moduleMeta = $moduleHandler->getMeta();
 		$moduleObjectId = $moduleMeta->getEntityId();
 		$moduleFields = $moduleMeta->getModuleFields();
-
-		$entityData = [];
 		$tableName = Import_Utils_Helper::getDbTableName($this->user);
 		$sql = 'SELECT * FROM %s  WHERE temp_status = %s';
 		$sql = sprintf($sql, $tableName, Import_Data_Action::$IMPORT_RECORD_NONE);
@@ -227,7 +224,7 @@ class Import_Data_Action extends Vtiger_Action_Controller
 				$entityInfo = $focus->importRecord($this, $fieldData);
 			} else {
 				if (!empty($mergeType) && $mergeType != Import_Utils_Helper::$AUTO_MERGE_NONE) {
-					$queryGenerator = new QueryGenerator($moduleName, $this->user);
+					$queryGenerator = new App\QueryGenerator($moduleName, $this->user->id);
 					$viewId = App\CustomView::getInstance($moduleName)->getViewIdByName('All');
 					if (!empty($viewId)) {
 						$queryGenerator->initForCustomViewById($viewId);
@@ -235,17 +232,11 @@ class Import_Data_Action extends Vtiger_Action_Controller
 						$queryGenerator->initForDefaultCustomView();
 					}
 
-					$fieldsList = array('id');
+					$fieldsList = ['id'];
 					$queryGenerator->setFields($fieldsList);
 
 					$mergeFields = $this->mergeFields;
-					if ($queryGenerator->getWhereFields() && $mergeFields) {
-						$queryGenerator->addConditionGlue(QueryGenerator::$AND);
-					}
 					foreach ($mergeFields as $index => $mergeField) {
-						if ($index != 0) {
-							$queryGenerator->addConditionGlue(QueryGenerator::$AND);
-						}
 						$comparisonValue = $fieldData[$mergeField];
 						$fieldInstance = $moduleFields[$mergeField];
 						if ($fieldInstance->getFieldDataType() == 'owner') {
@@ -262,11 +253,11 @@ class Import_Data_Action extends Vtiger_Action_Controller
 								$comparisonValue = trim($referenceFileValueComponents[1]);
 							}
 						}
-						$queryGenerator->addCondition($mergeField, $comparisonValue, 'e', '', '', '', true);
+						$queryGenerator->addCondition($mergeField, $comparisonValue, 'e');
 					}
-					$query = $queryGenerator->getQuery();
-					$duplicatesResult = $adb->query($query);
-					$noOfDuplicates = $adb->num_rows($duplicatesResult);
+					$query = $queryGenerator->createQuery();
+					$duplicatesResult = $query->all();
+					$noOfDuplicates = count($duplicatesResult);
 
 					if ($noOfDuplicates > 0) {
 						if ($mergeType == Import_Utils_Helper::$AUTO_MERGE_IGNORE) {
@@ -275,11 +266,11 @@ class Import_Data_Action extends Vtiger_Action_Controller
 							$mergeType == Import_Utils_Helper::$AUTO_MERGE_MERGEFIELDS) {
 
 							for ($index = 0; $index < $noOfDuplicates - 1; ++$index) {
-								$duplicateRecordId = $adb->query_result($duplicatesResult, $index, $fieldColumnMapping['id']);
+								$duplicateRecordId = $duplicatesResult[$index][$fieldColumnMapping['id']];
 								$entityId = vtws_getId($moduleObjectId, $duplicateRecordId);
 								vtws_delete($entityId, $this->user);
 							}
-							$baseRecordId = $adb->query_result($duplicatesResult, $noOfDuplicates - 1, $fieldColumnMapping['id']);
+							$baseRecordId = $duplicatesResult[$noOfDuplicates - 1][$fieldColumnMapping['id']];
 							$baseEntityId = vtws_getId($moduleObjectId, $baseRecordId);
 
 							if ($mergeType == Import_Utils_Helper::$AUTO_MERGE_OVERWRITE) {
@@ -365,8 +356,12 @@ class Import_Data_Action extends Vtiger_Action_Controller
 			$this->updateImportStatus($rowId, $entityInfo);
 		}
 		if (empty($handlerOn) && $this->entityData) {
-			$entity = new VTEventsManager($adb);
-			$entity->triggerEvent('vtiger.batchevent.save', $this->entityData);
+			$eventHandler = new App\EventHandler();
+			$eventHandler->setModuleName($moduleName);
+			$eventHandler->setParams([
+				'rows' => $this->entityData,
+			]);
+			$eventHandler->trigger('EntityImportSave');
 		}
 		$this->entityData = null;
 		$result = null;
@@ -766,7 +761,8 @@ class Import_Data_Action extends Vtiger_Action_Controller
 		$focus = $recordModel->getEntity();
 		$focus->id = $recordId;
 		$focus->column_fields = $fieldData;
-		$this->entityData[] = VTEntityData::fromCRMEntity($focus);
+		$recordModel->setId($recordId);
+		$this->entityData[] = $recordModel;
 		$focus->updateMissingSeqNumber($moduleName);
 		return $entityIdInfo;
 	}

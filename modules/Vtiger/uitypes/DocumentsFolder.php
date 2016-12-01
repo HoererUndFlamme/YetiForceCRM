@@ -30,4 +30,18 @@ class Vtiger_DocumentsFolder_UIType extends Vtiger_Base_UIType
 		return (new App\Db\Query())->select(['foldername'])->from('vtiger_attachmentsfolder')
 				->where(['folderid' => $value])->scalar();
 	}
+
+	/**
+	 * Function to get the DB Insert Value, for the current field type with given User Value
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
+	 */
+	public function getDBValue($value, $recordModel = false)
+	{
+		if (empty($value)) {
+			return 1; //the documents will stored in default folder
+		}
+		return $value;
+	}
 }

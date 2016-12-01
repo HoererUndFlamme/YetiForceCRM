@@ -24,7 +24,7 @@ require_once 'include/utils/ListViewUtils.php';
 require_once 'include/utils/CommonUtils.php';
 require_once 'include/utils/InventoryUtils.php';
 require_once 'include/utils/SearchUtils.php';
-require_once 'include/events/SqlResultIterator.inc';
+require_once 'include/events/SqlResultIterator.php';
 require_once 'include/fields/DateTimeField.php';
 require_once 'include/fields/DateTimeRange.php';
 require_once 'include/fields/CurrencyField.php';
@@ -33,6 +33,8 @@ include_once 'modules/Vtiger/CRMEntity.php';
 require_once 'include/runtime/Cache.php';
 require_once 'modules/Vtiger/helpers/Util.php';
 require_once 'modules/PickList/DependentPickListUtils.php';
+require_once 'modules/Users/Users.php';
+require_once 'include/Webservices/Utils.php';
 
 // Constants to be defined here
 // For Migration status.
@@ -94,55 +96,6 @@ $toHtml = array(
 	'' => '\r',
 	'\r\n' => '\n',
 );
-
-/** Function to convert the given string to html
- * @param $string -- string:: Type string
- * @param $encode -- boolean:: Type boolean
- * @returns $string -- string:: Type string
- *
- */
-function to_html($string, $encode = true)
-{
-	$oginalString = $string;
-	$instance = Vtiger_Cache::get('to_html', $oginalString);
-	if ($instance) {
-		return $instance;
-	}
-	$default_charset = vglobal('default_charset');
-
-	$action = AppRequest::has('action') ? AppRequest::get('action') : false;
-	$search = AppRequest::has('search') ? AppRequest::get('search') : false;
-	$ajaxAction = false;
-	$doconvert = false;
-
-	// For optimization - default_charset can be either upper / lower case.
-	static $inUTF8 = NULL;
-	if ($inUTF8 === NULL) {
-		$inUTF8 = (strtoupper($default_charset) == 'UTF-8');
-	}
-
-	if (AppRequest::has('module') && AppRequest::has('file') && AppRequest::get('module') != 'Settings' && AppRequest::get('file') != 'ListView' && AppRequest::get('module') != 'Portal' && AppRequest::get('module') != 'Reports')
-		$ajaxAction = AppRequest::get('module') . 'Ajax';
-
-	if (is_string($string)) {
-		if ($action != 'CustomView' && $action != 'Export' && $action != $ajaxAction && $action != 'LeadConvertToEntities' && $action != 'CreatePDF' && $action != 'ConvertAsFAQ' && AppRequest::get('module') != 'Dashboard' && $action != 'CreateSOPDF' && $action != 'SendPDFMail' && (!AppRequest::has('submode'))) {
-			$doconvert = true;
-		} else if ($search === true) {
-			// Fix for tickets #4647, #4648. Conversion required in case of search results also.
-			$doconvert = true;
-		}
-
-		// In vtiger5 ajax request are treated specially and the data is encoded
-		if ($doconvert === true) {
-			if ($inUTF8)
-				$string = htmlentities($string, ENT_QUOTES, $default_charset);
-			else
-				$string = preg_replace(['/</', '/>/', '/"/'], ['&lt;', '&gt;', '&quot;'], $string);
-		}
-	}
-	Vtiger_Cache::set('to_html', $oginalString, $string);
-	return $string;
-}
 
 /** Function to get column fields for a given module
  * @param $module -- module:: Type string
@@ -569,30 +522,24 @@ function getRelationTables($module, $secmodule)
  */
 function DeleteEntity($destinationModule, $sourceModule, $focus, $destinationRecordId, $sourceRecordId, $relatedName = false)
 {
-	$adb = PearDatabase::getInstance();
-
 	\App\Log::trace("Entering DeleteEntity method ($destinationModule, $sourceModule, $destinationRecordId, $sourceRecordId)");
-	require_once('include/events/include.inc');
+	require_once('include/events/include.php');
 	if ($destinationModule != $sourceModule && !empty($sourceModule) && !empty($sourceRecordId)) {
-		$em = new VTEventsManager($adb);
-		$em->initTriggerCache();
-
-		$data = [];
-		$data['CRMEntity'] = $focus;
-		$data['entityData'] = VTEntityData::fromEntityId($adb, $destinationRecordId);
-		$data['sourceModule'] = $sourceModule;
-		$data['sourceRecordId'] = $sourceRecordId;
-		$data['destinationModule'] = $destinationModule;
-		$data['destinationRecordId'] = $destinationRecordId;
-		$em->triggerEvent('vtiger.entity.unlink.before', $data);
+		$eventHandler = new App\EventHandler();
+		$eventHandler->setModuleName($sourceModule);
+		$eventHandler->setParams([
+			'CRMEntity' => $focus,
+			'sourceModule' => $sourceModule,
+			'sourceRecordId' => $sourceRecordId,
+			'destinationModule' => $destinationModule,
+			'destinationRecordId' => $destinationRecordId,
+		]);
+		$eventHandler->trigger('EntityBeforeUnLink');
 
 		$focus->unlinkRelationship($destinationRecordId, $sourceModule, $sourceRecordId, $relatedName);
 		$focus->trackUnLinkedInfo($sourceModule, $sourceRecordId, $destinationModule, $destinationRecordId);
 
-		if ($em) {
-			$entityData = VTEntityData::fromEntityId($adb, $destinationRecordId);
-			$em->triggerEvent('vtiger.entity.unlink.after', $data);
-		}
+		$eventHandler->trigger('EntityAfterUnLink');
 	} else {
 		$currentUserPrivilegesModel = Users_Privileges_Model::getCurrentUserPrivilegesModel();
 		if (!$currentUserPrivilegesModel->isPermitted($destinationModule, 'Delete', $destinationRecordId)) {
@@ -608,45 +555,25 @@ function DeleteEntity($destinationModule, $sourceModule, $focus, $destinationRec
  */
 function relateEntities($focus, $sourceModule, $sourceRecordId, $destinationModule, $destinationRecordIds, $relatedName = false)
 {
-	$adb = PearDatabase::getInstance();
-
 	\App\Log::trace("Entering relateEntities method ($sourceModule, $sourceRecordId, $destinationModule, $destinationRecordIds)");
-	require_once('include/events/include.inc');
-	//require_once('modules/com_vtiger_workflow/VTWorkflowManager.inc');
-	//require_once('modules/com_vtiger_workflow/VTEntityCache.inc');
-	$em = new VTEventsManager($adb);
-	$em->initTriggerCache();
 	if (!is_array($destinationRecordIds))
 		$destinationRecordIds = [$destinationRecordIds];
 
-	$data = [];
-	$data['CRMEntity'] = $focus;
-	$data['entityData'] = VTEntityData::fromEntityId($adb, $sourceRecordId);
-	$data['sourceModule'] = $sourceModule;
-	$data['sourceRecordId'] = $sourceRecordId;
-	$data['destinationModule'] = $destinationModule;
-	foreach ($destinationRecordIds as $destinationRecordId) {
+	$data = [
+		'CRMEntity' => $focus,
+		'sourceModule' => $sourceModule,
+		'sourceRecordId' => $sourceRecordId,
+		'destinationModule' => $destinationModule,
+	];
+	$eventHandler = new App\EventHandler();
+	$eventHandler->setModuleName($sourceModule);
+	foreach ($destinationRecordIds as &$destinationRecordId) {
 		$data['destinationRecordId'] = $destinationRecordId;
-		$em->triggerEvent('vtiger.entity.link.before', $data);
+		$eventHandler->setParams($data);
+		$eventHandler->trigger('EntityBeforeLink');
 		$focus->save_related_module($sourceModule, $sourceRecordId, $destinationModule, $destinationRecordId, $relatedName);
 		CRMEntity::trackLinkedInfo($sourceRecordId);
-		/*
-		  $wfs = new VTWorkflowManager($adb);
-		  $workflows = $wfs->getWorkflowsForModule($sourceModule, VTWorkflowManager::$ON_RELATED);
-		  $entityCache = new VTEntityCache(Users_Record_Model::getCurrentUserModel());
-		  $entityData = VTEntityData::fromCRMEntity($focus);
-		  $entityData->eventType = VTWorkflowManager::$ON_RELATED;
-		  $entityData->relatedInfo = [
-		  'destId' => $destinationRecordId,
-		  'destModule' => $destinationModule,
-		  ];
-		  foreach ($workflows as $id => $workflow) {
-		  if ($workflow->evaluate($entityCache, $entityData->getId())) {
-		  $workflow->performTasks($entityData);
-		  }
-		  }
-		 */
-		$em->triggerEvent('vtiger.entity.link.after', $data);
+		$eventHandler->trigger('EntityAfterLink');
 	}
 	\App\Log::trace("Exiting relateEntities method ...");
 }

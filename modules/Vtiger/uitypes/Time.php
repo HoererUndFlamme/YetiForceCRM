@@ -128,4 +128,18 @@ class Vtiger_Time_UIType extends Vtiger_Base_UIType
 		$value = $time->format('H:i:s');
 		return $value;
 	}
+
+	/**
+	 * Function to get the DB Insert Value, for the current field type with given User Value
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
+	 */
+	public function getDBValue($value, $recordModel = false)
+	{
+		if ($this->get('field')->get('uitype') === 14) {
+			return self::getDBTimeFromUserValue($value);
+		}
+		return $value;
+	}
 }

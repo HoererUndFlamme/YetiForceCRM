@@ -438,7 +438,7 @@ class Vtiger_Field_Model extends vtlib\Field
 	 */
 	public function isViewEnabled()
 	{
-		if ($this->getDisplayType() == '4' || in_array($this->get('presence'), array(1, 3))) {
+		if ($this->getDisplayType() === 4 || in_array($this->get('presence'), [1, 3])) {
 			return false;
 		}
 		return $this->getPermissions();
@@ -462,7 +462,7 @@ class Vtiger_Field_Model extends vtlib\Field
 	 */
 	public function isViewableInDetailView()
 	{
-		if (!$this->isViewable() || $this->getDisplayType() == '3' || $this->getDisplayType() == '5') {
+		if (!$this->isViewable() || $this->getDisplayType() === 3 || $this->getDisplayType() === 5) {
 			return false;
 		}
 		return true;
@@ -519,7 +519,7 @@ class Vtiger_Field_Model extends vtlib\Field
 
 	public function isActiveReference()
 	{
-		if ($this->getFieldDataType() == 'reference') {
+		if ($this->getFieldDataType() === 'reference') {
 			$webserviceField = $this->getWebserviceFieldObject();
 			$referenceList = $webserviceField->getReferenceList();
 			foreach ($referenceList as $key => $module) {
@@ -560,6 +560,14 @@ class Vtiger_Field_Model extends vtlib\Field
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * If the field is sortable in ListView
+	 */
+	public function isListviewSortable()
+	{
+		return $this->getUITypeModel()->isListviewSortable();
 	}
 
 	/**
@@ -812,7 +820,7 @@ class Vtiger_Field_Model extends vtlib\Field
 				$fieldObjects = [];
 			}
 
-			foreach ($fieldObjects as $fieldObject) {
+			foreach ($fieldObjects as &$fieldObject) {
 				$fieldModelObject = self::getInstanceFromFieldObject($fieldObject);
 				$block = $fieldModelObject->get('block') ? $fieldModelObject->get('block')->id : 0;
 				$fieldModelList[$block][] = $fieldModelObject;
@@ -1020,9 +1028,9 @@ class Vtiger_Field_Model extends vtlib\Field
 	 * @param type $value in user format
 	 * @return type
 	 */
-	public function getDBInsertValue($value)
+	public function getDBValue($value)
 	{
-		return $this->getUITypeModel()->getDBInsertValue($value);
+		return $this->getUITypeModel()->getDBValue($value);
 	}
 
 	/**
@@ -1037,28 +1045,16 @@ class Vtiger_Field_Model extends vtlib\Field
 
 	public function __update()
 	{
-		$db = PearDatabase::getInstance();
-		$this->get('generatedtype') == 1 ? $generatedtype = 1 : $generatedtype = 2;
-		$query = 'UPDATE vtiger_field SET typeofdata=?, presence=?, quickcreate=?, masseditable=?, header_field=?, maxlengthtext=?, maxwidthcolumn=?, defaultvalue=?, summaryfield=?, displaytype=?, helpinfo=?, generatedtype=?, fieldparams=? WHERE fieldid=?';
-		$params = array(
-			$this->get('typeofdata'),
-			$this->get('presence'),
-			$this->get('quickcreate'),
-			$this->get('masseditable'),
-			$this->get('header_field'),
-			$this->get('maxlengthtext'),
-			$this->get('maxwidthcolumn'),
-			$this->get('defaultvalue'),
-			$this->get('summaryfield'),
-			$this->get('displaytype'),
-			$this->get('helpinfo'),
-			$generatedtype,
-			$this->get('fieldparams'),
-			$this->get('id')
-		);
-		$db->pquery($query, $params);
+		$db = \App\Db::getInstance();
+		$this->get('generatedtype') == 1 ? $generatedType = 1 : $generatedType = 2;
+		$db->createCommand()->update('vtiger_field', ['typeofdata' => $this->get('typeofdata'), 'presence' => $this->get('presence'), 'quickcreate' => $this->get('quickcreate'),
+			'masseditable' => $this->get('masseditable'), 'header_field' => $this->get('header_field'), 'maxlengthtext' => $this->get('maxlengthtext'),
+			'maxwidthcolumn' => $this->get('maxwidthcolumn'), 'defaultvalue' => $this->get('defaultvalue'), 'summaryfield' => $this->get('summaryfield'),
+			'displaytype' => $this->get('displaytype'), 'helpinfo' => $this->get('helpinfo'), 'generatedtype' => $generatedType,
+			'fieldparams' => $this->get('fieldparams')
+			], ['fieldid' => $this->get('id')])->execute();
 		if ($this->isMandatory())
-			$db->pquery('UPDATE vtiger_blocks_hide SET `enabled` = ? WHERE `blockid` = ?;', array(0, $this->getBlockId()));
+			$db->createCommand()->update('vtiger_blocks_hide', ['enabled' => 0], ['blockid' => $this->getBlockId()])->execute();
 	}
 
 	public function updateTypeofDataFromMandatory($mandatoryValue = 'O')
@@ -1123,6 +1119,12 @@ class Vtiger_Field_Model extends vtlib\Field
 		return ($this->getFieldDataType() == self::OWNER_TYPE) ? true : false;
 	}
 
+	/**
+	 * Function returns field instance for field ID
+	 * @param int $fieldId
+	 * @param int $moduleTabId
+	 * @return \Vtiger_Field_Model
+	 */
 	public static function getInstanceFromFieldId($fieldId, $moduleTabId = false)
 	{
 		$fieldModel = Vtiger_Cache::get('FieldModel', $fieldId);
@@ -1130,7 +1132,8 @@ class Vtiger_Field_Model extends vtlib\Field
 			return $fieldModel;
 		}
 		$field = vtlib\Functions::getModuleFieldInfoWithId($fieldId);
-		$fieldModel = new self();
+		$className = Vtiger_Loader::getComponentClassName('Model', 'Field', \App\Module::getModuleName($field['tabid']));
+		$fieldModel = new $className();
 		$fieldModel->initialize($field);
 		Vtiger_Cache::set('FieldModel', $fieldId, $fieldModel);
 		return $fieldModel;

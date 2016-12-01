@@ -61,4 +61,18 @@ class Vtiger_InventoryLimit_UIType extends Vtiger_Picklist_UIType
 		}
 		return $limits;
 	}
+
+	/**
+	 * Function to get the DB Insert Value, for the current field type with given User Value
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
+	 */
+	public function getDBValue($value, $recordModel = false)
+	{
+		if (is_array($value)) {
+			$value = implode(',', $value);
+		}
+		return $value;
+	}
 }

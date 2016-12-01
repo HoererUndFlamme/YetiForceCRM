@@ -29,4 +29,15 @@ class Vtiger_Double_UIType extends Vtiger_Base_UIType
 	{
 		return \vtlib\Functions::formatDecimal($value);
 	}
+
+	/**
+	 * Function to get the DB Insert Value, for the current field type with given User Value
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
+	 */
+	public function getDBValue($value, $recordModel = false)
+	{
+		return str_replace(',', '', $value);
+	}
 }

@@ -3053,7 +3053,7 @@ class Base4 extends \App\Db\Importers\Base
 					[519, 86, 18, 'getRelatedList', 21, 'Vendors', 0, 'SELECT,ADD', 0, 0, 0],
 					[520, 86, 93, 'getRelatedList', 22, 'Competition', 0, 'SELECT,ADD', 0, 0, 0],
 					[521, 92, 43, 'getRelatedList', 14, 'Project', 0, 'SELECT,ADD', 0, 0, 0],
-					[523, 43, 92, 'getRelatedList', 11, 'Vendors', 0, 'SELECT,ADD', 0, 0, 0],
+					[523, 43, 18, 'getRelatedList', 11, 'Vendors', 0, 'SELECT,ADD', 0, 0, 0],
 					[524, 43, 92, 'getRelatedList', 12, 'Partners', 0, 'SELECT,ADD', 0, 0, 0],
 				]
 			],
@@ -7776,7 +7776,7 @@ class Base4 extends \App\Db\Importers\Base
 			'vtiger_users' => [
 				'columns' => ['id', 'user_name', 'user_password', 'user_hash', 'cal_color', 'first_name', 'last_name', 'reports_to_id', 'is_admin', 'currency_id', 'description', 'date_entered', 'date_modified', 'modified_user_id', 'email1', 'status', 'user_preferences', 'tz', 'holidays', 'namedays', 'workdays', 'weekstart', 'date_format', 'hour_format', 'start_hour', 'end_hour', 'activity_view', 'lead_view', 'imagename', 'deleted', 'confirm_password', 'internal_mailer', 'reminder_interval', 'reminder_next_time', 'crypt_type', 'accesskey', 'theme', 'language', 'time_zone', 'currency_grouping_pattern', 'currency_decimal_separator', 'currency_grouping_separator', 'currency_symbol_placement', 'phone_crm_extension', 'no_of_currency_decimals', 'truncate_trailing_zeros', 'dayoftheweek', 'callduration', 'othereventduration', 'calendarsharedtype', 'default_record_view', 'leftpanelhide', 'rowheight', 'defaulteventstatus', 'defaultactivitytype', 'is_owner', 'emailoptout'],
 				'values' => [
-					[1, 'admin', '$1$ad000000$hzXFXvL3XVlnUE/X.1n9t/', 'd41d8cd98f00b204e9800998ecf8427e', '#E6FAD8', '', 'Administrator', 0, 'on', 1, '', '2016-03-17 11:44:49', '0000-00-00 00:00:00', NULL, 'help@yetiforce.com', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, 'yyyy-mm-dd', '24', '08:00', '23:00', 'This Month', 'Today', '', 0, '$1$ad000000$nYTnfhTZRmUP.wQT9y1AE.', 1, '15 Minutes', NULL, 'PHP5.3MD5', 'aOFXop10GCJ1uw0P', 'twilight', 'en_us', 'Europe/Sarajevo', '123456789', ',', ' ', '1.0$', '', 2, 1, 'Monday', 60, 60, 'private', 'Summary', 0, 'medium', 'PLL_PLANNED', 'Meeting', '1', 1],
+					[1, 'admin', '$1$ad000000$hzXFXvL3XVlnUE/X.1n9t/', 'd41d8cd98f00b204e9800998ecf8427e', '#E6FAD8', '', 'Administrator', 0, 'on', 1, '', 'NOW()', 'NOW()', NULL, 'help@yetiforce.com', 'Active', NULL, NULL, NULL, NULL, NULL, NULL, 'yyyy-mm-dd', '24', '08:00', '23:00', 'This Month', 'Today', '', 0, '$1$ad000000$nYTnfhTZRmUP.wQT9y1AE.', 1, '15 Minutes', NULL, 'PHP5.3MD5', 'aOFXop10GCJ1uw0P', 'twilight', 'en_us', 'Europe/Sarajevo', '123456789', ',', ' ', '1.0$', '', 2, 1, 'Monday', 60, 60, 'private', 'Summary', 0, 'medium', 'PLL_PLANNED', 'Meeting', '1', 1],
 				]
 			],
 			'vtiger_users2group' => [
@@ -8105,7 +8105,6 @@ class Base4 extends \App\Db\Importers\Base
 					[21, 'vtiger_currency_info'],
 					[22, 'vtiger_attachmentsfolder'],
 					[23, 'vtiger_organizationdetails'],
-					[33, 'vtiger_inventoryproductrel'],
 				]
 			],
 			'vtiger_ws_fieldinfo' => [
@@ -8146,7 +8145,7 @@ class Base4 extends \App\Db\Importers\Base
 					[28, '80', 'reference'],
 					[29, '81', 'reference'],
 					[30, '101', 'reference'],
-					[31, '52', 'reference'],
+					[31, '52', 'userCreator'],
 					[32, '357', 'reference'],
 					[33, '59', 'reference'],
 					[34, '66', 'referenceProcess'],

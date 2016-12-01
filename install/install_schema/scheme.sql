@@ -286,12 +286,6 @@ CREATE TABLE `com_vtiger_workflows` (
   UNIQUE KEY `com_vtiger_workflows_idx` (`workflow_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8;
 
-/*Table structure for table `com_vtiger_workflows_seq` */
-
-CREATE TABLE `com_vtiger_workflows_seq` (
-  `id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 /*Table structure for table `com_vtiger_workflowtask_queue` */
 
 CREATE TABLE `com_vtiger_workflowtask_queue` (
@@ -853,6 +847,17 @@ CREATE TABLE `roundcube_users_autologin` (
   `crmuser_id` int(19) NOT NULL,
   KEY `rcuser_id` (`rcuser_id`),
   CONSTRAINT `roundcube_users_autologin_ibfk_1` FOREIGN KEY (`rcuser_id`) REFERENCES `roundcube_users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+/*Table structure for table `s_yf_handler_updater` */
+
+CREATE TABLE `s_yf_handler_updater` (
+  `tabid` smallint(11) unsigned NOT NULL,
+  `crmid` int(11) unsigned NOT NULL,
+  `userid` int(11) unsigned NOT NULL,
+  `handler_name` varchar(50) NOT NULL,
+  `class` varchar(50) NOT NULL,
+  `params` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 /*Table structure for table `s_yf_mail_relation_updater` */
@@ -4644,12 +4649,14 @@ CREATE TABLE `vtiger_eventhandler_module_seq` (
 
 CREATE TABLE `vtiger_eventhandlers` (
   `eventhandler_id` smallint(11) unsigned NOT NULL AUTO_INCREMENT,
-  `event_name` varchar(100) NOT NULL,
-  `handler_path` varchar(400) NOT NULL,
+  `event_name` varchar(50) NOT NULL,
   `handler_class` varchar(100) NOT NULL,
-  `cond` text,
   `is_active` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `include_modules` text NOT NULL,
+  `exclude_modules` text NOT NULL,
+  `priority` tinyint(1) unsigned NOT NULL DEFAULT '5',
   `dependent_on` varchar(255) DEFAULT '[]',
+  `handler_path` varchar(400) NOT NULL,
   PRIMARY KEY (`eventhandler_id`,`event_name`,`handler_class`),
   UNIQUE KEY `eventhandler_idx` (`eventhandler_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8;
@@ -5305,8 +5312,6 @@ CREATE TABLE `vtiger_inventory_tandc` (
   `tandc` text,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
-
-
 
 /*Table structure for table `vtiger_inventoryproductrel` */
 

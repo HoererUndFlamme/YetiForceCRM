@@ -19,6 +19,7 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 	protected $inventoryData = false;
 	protected $privileges = [];
 	protected $fullForm = true;
+	protected $changes = [];
 	public $summaryRowCount = 4;
 
 	/**
@@ -31,13 +32,45 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 	}
 
 	/**
+	 * Function to get the value for a given key
+	 * @param $key
+	 * @return Value for the given key
+	 */
+	public function get($key)
+	{
+		return isset($this->valueMap[$key]) ? $this->valueMap[$key] : null;
+	}
+
+	/**
 	 * Function to set the id of the record
 	 * @param <type> $value - id value
-	 * @return <Object> - current instance
 	 */
 	public function setId($value)
 	{
 		return $this->set('id', $value);
+	}
+
+	/**
+	 * Is new record
+	 * @return boolean
+	 */
+	public function isNew()
+	{
+		return $this->get('mode') !== 'edit';
+	}
+
+	/**
+	 * Function to set the value for a given key
+	 * @param $key
+	 * @param $value
+	 */
+	public function set($key, $value)
+	{
+		if (!in_array($key, ['mode', 'id', 'newRecord'])) {
+			$this->changes[$key] = $this->get($key);
+		}
+		$this->valueMap[$key] = $value;
+		return $this;
 	}
 
 	/**
@@ -51,6 +84,19 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 			$displayName = $this->getDisplayName();
 		}
 		return Vtiger_Util_Helper::toSafeHTML(decode_html($displayName));
+	}
+
+	/**
+	 * Get pevious value by field
+	 * @param string $key
+	 * @return mixed
+	 */
+	public function getPreviousValue($key = false)
+	{
+		if (!$key) {
+			return $this->changes;
+		}
+		return isset($this->changes[$key]) ? $this->changes[$key] : false;
 	}
 
 	/**
@@ -299,7 +345,8 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 	{
 		$db = PearDatabase::getInstance();
 		//Disabled generating record ID in transaction  in order to maintain data integrity
-		if ($this->get('mode') != 'edit') {
+
+		if ($this->isNew()) {
 			$recordId = \App\Db::getInstance()->getUniqueID('vtiger_crmentity');
 			$this->set('newRecord', $recordId);
 		}
@@ -310,7 +357,36 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 		$this->getModule()->saveRecord($this);
 		$db->completeTransaction();
 
+		if ($this->isNew()) {
+			\App\Cache::staticSave('RecordModel', $this->getId() . ':' . $this->getModuleName(), $this);
+		}
 		\App\PrivilegeUpdater::updateOnRecordSave($this);
+	}
+
+	public function saveToDb()
+	{
+		$saveFields = $this->getModule()->getFieldsForSave();
+		$isNew = $this->isNew();
+		if (!$isNew) {
+			$saveFields = array_intersect($saveFields, array_keys($this->changes));
+		}
+		$moduleModel = $this->getModule();
+		$entityInstance = $moduleModel->getEntityModules();
+		$forSave = [];
+		foreach ($saveFields as &$fieldName) {
+			$fieldModel = $moduleModel->getFieldByName($fieldName);
+			$forSave[$fieldModel->getTableName()][$fieldModel->getColumnName()] = $fieldModel->getUITypeModel()->getDBValue($this->get($fieldName), $this);
+		}
+		$db = \App\Db::getInstance();
+		foreach ($forSave as $tableName => $$tableData) {
+			$tablekey = $entityInstance->tab_name_index[$tableName];
+			if ($isNew) {
+				$tableData[$tablekey] = $this->get('newRecord');
+				$db->createCommand()->insert($tableName, $tableData)->execute();
+			} else {
+				$db->createCommand()->update($tableName, $tableData, [$tablekey => $this->getId()])->execute();
+			}
+		}
 	}
 
 	/**
@@ -356,10 +432,9 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 			$moduleName = \App\Record::getType($recordId);
 			$module = Vtiger_Module_Model::getInstance($moduleName);
 		}
-		$cacheName = $recordId . ':' . $moduleName;
-		$instance = Vtiger_Cache::get('Vtiger_Record_Model', $cacheName);
-		if ($instance) {
-			return $instance;
+		$cacheName = "$recordId:$moduleName";
+		if (\App\Cache::staticHas('RecordModel', $cacheName)) {
+			return \App\Cache::staticGet('RecordModel', $cacheName);
 		}
 
 		$focus = CRMEntity::getInstance($moduleName);
@@ -367,9 +442,8 @@ class Vtiger_Record_Model extends Vtiger_Base_Model
 		$focus->retrieve_entity_info($recordId, $moduleName);
 		$modelClassName = Vtiger_Loader::getComponentClassName('Model', 'Record', $moduleName);
 		$instance = new $modelClassName();
-		$instance->setData($focus->column_fields)->set('id', $recordId)->setModuleFromInstance($module)->setEntity($focus);
-		$instance->set('mode', 'edit');
-		Vtiger_Cache::set('Vtiger_Record_Model', $cacheName, $instance);
+		$instance->setEntity($focus)->setData($focus->column_fields)->set('mode', 'edit')->setId($recordId)->setModuleFromInstance($module);
+		\App\Cache::staticSave('RecordModel', $cacheName, $instance);
 		return $instance;
 	}
 

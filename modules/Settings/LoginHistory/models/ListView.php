@@ -17,12 +17,16 @@ class Settings_LoginHistory_ListView_Model extends Settings_Vtiger_ListView_Mode
 	{
 		$module = $this->getModule();
 		$query = (new App\Db\Query())->select(['login_id', 'user_name', 'user_ip', 'logout_time',
-			'login_time', 'vtiger_loginhistory.status'])
+				'login_time', 'vtiger_loginhistory.status'])
 			->from($module->baseTable);
 		$search_key = $this->get('search_key');
 		$value = $this->get('search_value');
 		if (!empty($search_key) && !empty($value)) {
-			$query->where(["$module->baseTable.$search_key" => $value]);
+			if ('other' === $value) {
+				$subQuery = (new \App\Db\Query())->select('user_name')->from('vtiger_users');
+				$query->where(['not in', "$module->baseTable.$search_key", $subQuery]);
+			} else
+				$query->where(["$module->baseTable.$search_key" => $value]);
 		}
 		$query->orderBy(['login_time' => SORT_DESC]);
 		return $query;

@@ -248,16 +248,19 @@ class Vendors extends CRMEntity
 			parent::save_related_module($module, $crmid, $with_module, $with_crmids, $relatedName);
 		} else {
 			foreach ($with_crmids as $with_crmid) {
-				if ($with_module == 'Contacts') {
-					$adb->pquery("insert into vtiger_vendorcontactrel values (?,?)", array($crmid, $with_crmid));
-				} elseif ($with_module == 'Products') {
-					$adb->pquery("update vtiger_products set vendor_id=? where productid=?", array($crmid, $with_crmid));
-				} elseif ($with_module == 'Campaigns') {
-					$adb->insert('vtiger_campaign_records', [
+				if ($with_module === 'Contacts') {
+					App\Db::getInstance()->createCommand()->insert('vtiger_vendorcontactrel', [
+						'vendorid' => $crmid,
+						'contactid' => $with_crmid
+					])->execute();
+				} elseif ($with_module === 'Products') {
+					App\Db::getInstance()->createCommand()->update(['vendor_id' => $crmid], ['productid' => $with_crmid])->execute();
+				} elseif ($with_module === 'Campaigns') {
+					App\Db::getInstance()->createCommand()->insert('vtiger_campaign_records', [
 						'campaignid' => $with_crmid,
 						'crmid' => $crmid,
 						'campaignrelstatusid' => 0
-					]);
+					])->execute();
 				}
 			}
 		}
@@ -270,10 +273,9 @@ class Vendors extends CRMEntity
 		if (empty($return_module) || empty($return_id))
 			return;
 		if ($return_module == 'Campaigns') {
-			$this->db->delete('vtiger_campaign_records', 'crmid=? && campaignid=?', [$id, $return_id]);
+			App\Db::getInstance()->createCommand()->delete('vtiger_campaign_records', ['crmid' => $id, 'campaignid' => $return_id])->execute();
 		} elseif ($return_module == 'Contacts') {
-			$sql = 'DELETE FROM vtiger_vendorcontactrel WHERE vendorid=? && contactid=?';
-			$this->db->pquery($sql, array($id, $return_id));
+			App\Db::getInstance()->createCommand()->delete('vtiger_vendorcontactrel', ['vendorid' => $id, 'contactid' => $return_id])->execute();
 		} else {
 			parent::unlinkRelationship($id, $return_module, $return_id, $relatedName);
 		}

@@ -58,13 +58,13 @@ class Vtiger_Currency_UIType extends Vtiger_Base_UIType
 
 	/**
 	 * Function to get the DB Insert Value, for the current field type with given User Value
-	 * @param <Object> $value
-	 * @return <Object>
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
 	 */
-	public function getDBInsertValue($value)
+	public function getDBValue($value, $recordModel = false)
 	{
-		$uiType = $this->get('field')->get('uitype');
-		if ($uiType == 72) {
+		if ($this->get('field')->get('uitype') === 72) {
 			return self::convertToDBFormat($value, null, true);
 		} else {
 			return self::convertToDBFormat($value);

@@ -65,6 +65,9 @@ class Vtiger_DetailView_Model extends Vtiger_Base_Model
 	 */
 	public function getDetailViewLinks($linkParams)
 	{
+		if ($this->has('Links')) {
+			return $this->get('Links');
+		}
 		$moduleModel = $this->getModule();
 		$recordModel = $this->getRecord();
 		$moduleName = $moduleModel->getName();
@@ -73,8 +76,8 @@ class Vtiger_DetailView_Model extends Vtiger_Base_Model
 
 		if ($moduleModel->isPermitted('WorkflowTrigger')) {
 			$adb = PearDatabase::getInstance();
-			vimport('~~modules/com_vtiger_workflow/include.inc');
-			vimport('~~modules/com_vtiger_workflow/VTEntityMethodManager.inc');
+			vimport('~~modules/com_vtiger_workflow/include.php');
+			vimport('~~modules/com_vtiger_workflow/VTEntityMethodManager.php');
 			$wfs = new VTWorkflowManager($adb);
 			$workflows = $wfs->getWorkflowsForModule($moduleName, VTWorkflowManager::$TRIGGER);
 			if (count($workflows) > 0) {
@@ -208,19 +211,20 @@ class Vtiger_DetailView_Model extends Vtiger_Base_Model
 		}
 
 		$relatedLinks = $this->getDetailViewRelatedLinks();
-		foreach ($relatedLinks as $relatedLinkEntry) {
+		foreach ($relatedLinks as &$relatedLinkEntry) {
 			$relatedLink = Vtiger_Link_Model::getInstanceFromValues($relatedLinkEntry);
 			$linkModelList[$relatedLink->getType()][] = $relatedLink;
 		}
 
 		$allLinks = Vtiger_Link_Model::getAllByType($moduleModel->getId(), ['DETAILVIEWBASIC', 'DETAILVIEW', 'DETAIL_VIEW_HEADER_WIDGET', 'DETAILVIEWTAB'], $linkParams);
 		if (!empty($allLinks)) {
-			foreach ($allLinks as $type => $allLinksByType) {
-				foreach ($allLinksByType as $linkModel) {
+			foreach ($allLinks as $type => &$allLinksByType) {
+				foreach ($allLinksByType as &$linkModel) {
 					$linkModelList[$type][] = $linkModel;
 				}
 			}
 		}
+		$this->set('Links', $linkModelList);
 		return $linkModelList;
 	}
 

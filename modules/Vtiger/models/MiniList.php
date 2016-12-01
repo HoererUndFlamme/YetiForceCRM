@@ -107,21 +107,16 @@ class Vtiger_MiniList_Model extends Vtiger_Widget_Model
 
 	public function getRecords($user)
 	{
-		$ownerSql = '';
 		$this->initListViewController();
 		if (!$user) {
-			$currenUserModel = Users_Record_Model::getCurrentUserModel();
-			$user = $currenUserModel->getId();
+			$user = App\User::getCurrentUserId();
 		} else if ($user === 'all') {
 			$user = '';
 		}
-		$params = [];
-		if (!empty($user)) {
-			$ownerSql = ' AND vtiger_crmentity.smownerid = ? ';
-			$params[] = $user;
-		}
 		if (!$this->listviewRecords) {
-			$this->queryGenerator->addAndConditionNative(['vtiger_crmentity.smownerid' => $user]);
+			if (!empty($user)) {
+				$this->queryGenerator->addNativeCondition(['vtiger_crmentity.smownerid' => $user]);
+			}
 			$targetModuleName = $this->getTargetModule();
 			$targetModuleFocus = CRMEntity::getInstance($targetModuleName);
 			$filterId = $this->widgetModel->get('filterid');
@@ -146,23 +141,17 @@ class Vtiger_MiniList_Model extends Vtiger_Widget_Model
 	{
 		$url = 'index.php?module=' . $this->getTargetModule() . '&action=Pagination&mode=getTotalCount&viewname=' . $this->widgetModel->get('filterid');
 		if (!$user) {
-			$currenUserModel = Users_Record_Model::getCurrentUserModel();
-			$userName = $currenUserModel->getName();
-		} else if ($user && $user !== 'all') {
-			$userName = \App\Fields\Owner::getUserLabel($user);
+			$user = App\User::getCurrentUserId();
 		}
-		return empty($userName) ? $url : $url .= '&search_params=[[["assigned_user_id","c","' . $userName . '"]]]';
+		return $user === 'all' ? $url : $url .= '&search_params=[[["assigned_user_id","e","' . $user . '"]]]';
 	}
 
 	public function getListViewURL($user = false)
 	{
 		$url = 'index.php?module=' . $this->getTargetModule() . '&view=List&viewname=' . $this->widgetModel->get('filterid');
 		if (!$user) {
-			$currenUserModel = Users_Record_Model::getCurrentUserModel();
-			$userName = $currenUserModel->getName();
-		} else if ($user && $user !== 'all') {
-			$userName = \App\Fields\Owner::getUserLabel($user);
+			$user = App\User::getCurrentUserId();
 		}
-		return empty($userName) ? $url : $url .= '&search_params=[[["assigned_user_id","c","' . $userName . '"]]]';
+		return $user === 'all' ? $url : $url .= '&search_params=[[["assigned_user_id","e","' . $user . '"]]]';
 	}
 }

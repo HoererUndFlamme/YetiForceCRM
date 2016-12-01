@@ -161,10 +161,7 @@ class CRMEntity
 	 */
 	public function uploadAndSaveFile($id, $module, $file_details, $attachmentType = 'Attachment')
 	{
-
 		\App\Log::trace("Entering into uploadAndSaveFile($id,$module,$file_details) method.");
-
-		$adb = PearDatabase::getInstance();
 		$db = \App\Db::getInstance();
 		$userId = \App\User::getCurrentUserId();
 		$date = date('Y-m-d H:i:s');
@@ -206,10 +203,10 @@ class CRMEntity
 				'smownerid' => $ownerid,
 				'setype' => $module . " Image",
 				'description' => $this->column_fields['description'],
-				'createdtime' => $adb->formatDate($date, true),
-				'modifiedtime' => $adb->formatDate($date, true)
+				'createdtime' => $date,
+				'modifiedtime' => $date
 			];
-			if ($module == 'Contacts' || $module == 'Products') {
+			if ($module === 'Contacts' || $module === 'Products') {
 				$params['setype'] = $module . ' Image';
 			} else {
 				$params['setype'] = $module . ' Attachment';
@@ -226,21 +223,22 @@ class CRMEntity
 			$db->createCommand()->insert('vtiger_attachments', $params)->execute();
 
 			if (AppRequest::get('mode') == 'edit') {
-				if ($id != '' && AppRequest::get('fileid') != '') {
-					$delparams = [$id, AppRequest::get('fileid')];
-					$adb->delete('vtiger_seattachmentsrel', 'crmid = ? && attachmentsid = ?', $delparams);
+				if (!empty($id) && !empty(AppRequest::get('fileid'))) {
+					$db->createCommand()->delete('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => AppRequest::get('fileid')])->execute();
 				}
 			}
-			if ($module == 'Documents') {
-				$adb->delete('vtiger_seattachmentsrel', 'crmid = ?', [$id]);
+			if ($module === 'Documents') {
+				$db->createCommand()->delete('vtiger_seattachmentsrel', ['crmid' => $id])->execute();
 			}
 			if ($module == 'Contacts') {
-				$att_sql = "select vtiger_seattachmentsrel.attachmentsid  from vtiger_seattachmentsrel inner join vtiger_crmentity on vtiger_crmentity.crmid=vtiger_seattachmentsrel.attachmentsid where vtiger_crmentity.setype='Contacts Image' and vtiger_seattachmentsrel.crmid=?";
-				$res = $adb->pquery($att_sql, array($id));
-				$attachmentsid = $adb->query_result($res, 0, 'attachmentsid');
-				if ($attachmentsid != '') {
-					$adb->delete('vtiger_seattachmentsrel', 'crmid = ? && attachmentsid = ?', [$id, $attachmentsid]);
-					$adb->delete('vtiger_crmentity', 'crmid = ?', [$attachmentsid]);
+				$attachmentsId = (new \App\Db\Query())->select(['vtiger_seattachmentsrel.attachmentsid'])
+					->from('vtiger_seattachmentsrel')
+					->innerJoin('vtiger_crmentity', 'vtiger_seattachmentsrel.attachmentsid=vtiger_crmentity.crmid')
+					->where(['vtiger_crmentity.setype' => 'Contacts Image', 'vtiger_seattachmentsrel.crmid' => $id])
+					->scalar();
+				if (!empty($attachmentsId)) {
+					$db->createCommand()->delete('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $attachmentsId])->execute();
+					$db->createCommand()->delete('vtiger_crmentity', ['crmid' => $attachmentsId])->execute();
 					$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
 				} else {
 					$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
@@ -248,7 +246,6 @@ class CRMEntity
 			} else {
 				$db->createCommand()->insert('vtiger_seattachmentsrel', ['crmid' => $id, 'attachmentsid' => $currentId])->execute();
 			}
-
 			return true;
 		} else {
 			\App\Log::trace('Skip the save attachment process.');
@@ -479,22 +476,6 @@ class CRMEntity
 					} else {
 						$fldvalue = decode_html($this->column_fields[$fieldname]);
 					}
-				} elseif ($uitype === 8) {
-					$this->column_fields[$fieldname] = rtrim($this->column_fields[$fieldname], ',');
-					$ids = explode(',', $this->column_fields[$fieldname]);
-					$fldvalue = \App\Json::encode($ids);
-				} elseif ($uitype === 12) {
-					// Bulk Sae Mode: Consider the FROM email address as specified, if not lookup
-					$fldvalue = $this->column_fields[$fieldname];
-					if (empty($fldvalue)) {
-						$query = "SELECT email1 FROM vtiger_users WHERE id = ?";
-						$res = $adb->pquery($query, array($currentUser->getId()));
-						$rows = $adb->num_rows($res);
-						if ($rows > 0) {
-							$fldvalue = $adb->query_result($res, 0, 'email1');
-						}
-					}
-					// END
 				} elseif ($uitype === 72 && !$ajaxSave) {
 					// Some of the currency fields like Unit Price, Totoal , Sub-total - doesn't need currency conversion during save
 					$fldvalue = CurrencyField::convertToDBFormat($this->column_fields[$fieldname], null, true);
@@ -707,10 +688,10 @@ class CRMEntity
 	public function save($module_name, $fileid = '')
 	{
 
-		\App\Log::trace("module name is " . $module_name);
+		\App\Log::trace('module name is ' . $module_name);
 
 		//Event triggering code
-		require_once("include/events/include.inc");
+		require_once('include/events/include.php');
 		$adb = PearDatabase::getInstance();
 
 		//In Bulk mode stop triggering events
@@ -1004,7 +985,7 @@ class CRMEntity
 			throw new \Exception\AppException(vtranslate('LBL_PERMISSION_DENIED'));
 		}
 		if (!self::isBulkSaveMode()) {
-			require_once("include/events/include.inc");
+			require_once("include/events/include.php");
 			$em = new VTEventsManager($adb);
 
 			// Initialize Event trigger cache
@@ -1056,14 +1037,14 @@ class CRMEntity
 
 	public function deleteRelatedDependent($module, $crmid, $withModule, $withCrmid)
 	{
-		$fieldRes = $this->db->pquery('SELECT vtiger_field.tabid, vtiger_field.tablename, vtiger_field.columnname, vtiger_tab.name FROM vtiger_field LEFT JOIN vtiger_tab ON vtiger_tab.`tabid` = vtiger_field.`tabid` WHERE fieldid IN (SELECT fieldid FROM vtiger_fieldmodulerel WHERE module=? && relmodule=?)', [$module, $withModule]);
-		$numOfFields = $this->db->getRowCount($fieldRes);
-		while ($row = $this->db->getRow($fieldRes)) {
-			$focusObj = CRMEntity::getInstance($row['name']);
-			$columnName = $row['columnname'];
-			$columns = [$columnName => null];
-			$where = "$columnName = ? && $focusObj->table_index = ?";
-			$this->db->update($row['tablename'], $columns, $where, [$withCrmid, $crmid]);
+		$dataReader = (new \App\Db\Query())->select(['vtiger_field.tabid', 'vtiger_field.tablename', 'vtiger_field.columnname', 'vtiger_tab.name'])
+				->from('vtiger_field')
+				->leftJoin('vtiger_tab', 'vtiger_tab.tabid = vtiger_field.tabid')
+				->where(['fieldid' => (new \App\Db\Query())->select(['fieldid'])->from('vtiger_fieldmodulerel')->where(['module' => $module, 'relmodule' => $withModule])])
+				->createCommand()->query();
+		while ($row = $dataReader->read()) {
+			App\Db::getInstance()->createCommand()
+				->update($row['tablename'], [$row['columnname'] => 0], [$row['columnname'] => $withCrmid, CRMEntity::getInstance($row['name'])->table_index => $crmid])->execute();
 		}
 	}
 
@@ -1076,9 +1057,18 @@ class CRMEntity
 
 	public function deleteRelatedFromDB($module, $crmid, $withModule, $withCrmid)
 	{
-		$where = '(crmid=? && relmodule=? && relcrmid=?) || (relcrmid=? && module=? && crmid=?)';
-		$params = [$crmid, $withModule, $withCrmid, $crmid, $withModule, $withCrmid];
-		$this->db->delete('vtiger_crmentityrel', $where, $params);
+		App\Db::getInstance()->createCommand()->delete('vtiger_crmentityrel', ['or',
+			[
+				'crmid' => $crmid,
+				'relmodule' => $withModule,
+				'relcrmid' => $withCrmid
+			],
+			[
+				'relcrmid' => $crmid,
+				'module' => $withModule,
+				'crmid' => $withCrmid
+			]
+		])->execute();
 	}
 
 	/**
@@ -1102,7 +1092,7 @@ class CRMEntity
 				\App\Privilege::setUpdater($module, $id, 6, 0);
 			}
 			//Event triggering code
-			require_once('include/events/include.inc');
+			require_once('include/events/include.php');
 			$em = new VTEventsManager($db);
 
 			// Initialize Event trigger cache

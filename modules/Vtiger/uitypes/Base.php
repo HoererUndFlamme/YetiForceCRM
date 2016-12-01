@@ -18,6 +18,14 @@ class Vtiger_Base_UIType extends Vtiger_Base_Model
 	}
 
 	/**
+	 * If the field is sortable in ListView
+	 */
+	public function isListviewSortable()
+	{
+		return true;
+	}
+
+	/**
 	 * Function to get the Template name for the current UI Type Object
 	 * @return string - Template Name
 	 */
@@ -28,10 +36,11 @@ class Vtiger_Base_UIType extends Vtiger_Base_Model
 
 	/**
 	 * Function to get the DB Insert Value, for the current field type with given User Value
-	 * @param <Object> $value
-	 * @return <Object>
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
 	 */
-	public function getDBInsertValue($value)
+	public function getDBValue($value, $recordModel = false)
 	{
 		return $value;
 	}

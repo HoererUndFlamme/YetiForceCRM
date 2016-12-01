@@ -21,14 +21,14 @@ class ProjectMilestone_Module_Model extends Vtiger_Module_Model
 		if ($listviewModel->get('src_module') === 'Project' && !$listviewModel->isEmpty('filterFields')) {
 			$filterFields = $listviewModel->get('filterFields');
 			if (!empty($filterFields['projectid'])) {
-				$queryGenerator->addAndConditionNative(['projectid' => $filterFields['projectid']]);
+				$queryGenerator->addNativeCondition(['projectid' => $filterFields['projectid']]);
 			}
 		}
 	}
 
 	public function updateProgressMilestone($id)
 	{
-		if (!isRecordExists($id)) {
+		if (!App\Record::isExists($id)) {
 			return;
 		}
 		$relatedListView = Vtiger_RelationListView_Model::getInstance(Vtiger_Record_Model::getInstanceById($id), 'ProjectTask');

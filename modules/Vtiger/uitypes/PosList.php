@@ -27,4 +27,18 @@ class Vtiger_PosList_UIType extends Vtiger_Taxes_UIType
 	{
 		return $this->getServers();
 	}
+
+	/**
+	 * Function to get the DB Insert Value, for the current field type with given User Value
+	 * @param mixed $value
+	 * @param \Vtiger_Record_Model $recordModel
+	 * @return mixed
+	 */
+	public function getDBValue($value, $recordModel = false)
+	{
+		if (is_array($value)) {
+			$value = implode(',', $value);
+		}
+		return $value;
+	}
 }

@@ -145,11 +145,11 @@ class Campaigns extends CRMEntity
 			return;
 
 		if (in_array($returnModule, ['Leads', 'Vendors', 'Contacts', 'Partners', 'Competition'])) {
-			$this->db->delete('vtiger_campaign_records', 'campaignid=? && crmid=?', [$id, $returnId]);
+			App\Db::getInstance()->createCommand()->delete('vtiger_campaign_records', ['campaignid' => $id, 'crmid' => $returnId])->execute();
 		} elseif ($returnModule == 'Accounts') {
-			$this->db->delete('vtiger_campaign_records', 'campaignid=? && crmid=?', [$id, $returnId]);
-			$sql = 'DELETE FROM vtiger_campaign_records WHERE campaignid=? && crmid IN (SELECT contactid FROM vtiger_contactdetails WHERE accountid=?)';
-			$this->db->pquery($sql, array($id, $returnId));
+			$db = App\Db::getInstance();
+			$db->createCommand()->delete('vtiger_campaign_records', ['campaignid' => $id, 'crmid' => $returnId])->execute();
+			$db->createCommand()->delete('vtiger_campaign_records', ['campaignid' => $id, 'crmid' => (new \App\Db\Query())->select(['contactid'])->from('vtiger_contactdetails')->where(['parentid' => $returnId])])->execute();
 		} else {
 			parent::unlinkRelationship($id, $returnModule, $returnId, $relatedName);
 		}
@@ -157,23 +157,23 @@ class Campaigns extends CRMEntity
 
 	public function save_related_module($module, $crmid, $withModule, $withCrmids, $relatedName = false)
 	{
-		$adb = PearDatabase::getInstance();
-
 		if (!is_array($withCrmids))
 			$withCrmids = [$withCrmids];
 		if (!in_array($withModule, ['Accounts', 'Leads', 'Vendors', 'Contacts', 'Partners', 'Competition'])) {
 			parent::save_related_module($module, $crmid, $withModule, $withCrmids, $relatedName);
 		} else {
 			foreach ($withCrmids as $withCrmid) {
-				$checkResult = $adb->pquery('SELECT 1 FROM vtiger_campaign_records WHERE campaignid = ? && crmid = ?', array($crmid, $withCrmid));
-				if ($checkResult && $adb->num_rows($checkResult) > 0) {
+				$checkResult = (new App\Db\Query())->from('vtiger_campaign_records')
+						->where(['campaignid' => $crmid, 'crmid' => $withCrmid])
+						->exists();
+				if ($checkResult) {
 					continue;
 				}
-				$adb->insert('vtiger_campaign_records', [
+				App\Db::getInstance()->createCommand()->insert('vtiger_campaign_records', [
 					'campaignid' => $crmid,
 					'crmid' => $withCrmid,
 					'campaignrelstatusid' => 0
-				]);
+				])->execute();
 			}
 		}
 	}

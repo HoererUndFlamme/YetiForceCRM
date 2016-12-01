@@ -8,7 +8,6 @@
  * All Rights Reserved.
  * Contributor(s): YetiForce.com
  * ********************************************************************************** */
-
 namespace vtlib;
 
 /**
@@ -262,14 +261,14 @@ class Module extends ModuleBasic
 	 */
 	public static function fireEvent($modulename, $eventType)
 	{
-		$return = false;
+		$return = true;
 		$instance = self::getClassInstance((string) $modulename);
 		if ($instance) {
 			if (method_exists($instance, 'vtlib_handler')) {
 				self::log("Invoking vtlib_handler for $eventType ...START");
 				$fire = $instance->vtlib_handler((string) $modulename, (string) $eventType);
-				if ($fire === null || $fire === true) {
-					$return = true;
+				if ($fire !== null && $fire !== true) {
+					$return = false;
 				}
 				self::log("Invoking vtlib_handler for $eventType ...DONE");
 			}
@@ -292,7 +291,7 @@ class Module extends ModuleBasic
 		}
 		$fire = self::fireEvent($moduleName, $eventType);
 		if ($fire) {
-			 \App\Db::getInstance()->createCommand()->update('vtiger_tab', ['presence' => $enableDisable], ['name' => $moduleName])->execute();
+			\App\Db::getInstance()->createCommand()->update('vtiger_tab', ['presence' => $enableDisable], ['name' => $moduleName])->execute();
 			Deprecated::createModuleMetaFile();
 			vtlib_RecreateUserPrivilegeFiles();
 			$menuRecordModel = new \Settings_Menu_Record_Model();

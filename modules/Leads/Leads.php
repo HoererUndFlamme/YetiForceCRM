@@ -237,40 +237,36 @@ class Leads extends CRMEntity
 		if (empty($return_module) || empty($return_id))
 			return;
 
-		if ($return_module == 'Campaigns') {
-			$this->db->delete('vtiger_campaign_records', 'crmid=? && campaignid=?', [$id, $return_id]);
-		} elseif ($return_module == 'Products') {
-			$sql = 'DELETE FROM vtiger_seproductsrel WHERE crmid=? && productid=?';
-			$this->db->pquery($sql, array($id, $return_id));
+		if ($return_module === 'Campaigns') {
+			App\Db::getInstance()->createCommand()->delete('vtiger_campaign_records', ['crmid' => $id, 'campaignid' => $return_id])->execute();
+		} elseif ($return_module === 'Products') {
+			App\Db::getInstance()->createCommand()->delete('vtiger_seproductsrel', ['crmid' => $id, 'productid' => $return_id])->execute();
 		} else {
 			parent::unlinkRelationship($id, $return_module, $return_id, $relatedName);
 		}
 	}
 
-	public function save_related_module($module, $crmid, $with_module, $with_crmids, $relatedName = false)
+	public function save_related_module($module, $crmid, $withModule, $withCrmids, $relatedName = false)
 	{
-		$adb = PearDatabase::getInstance();
-		$currentUser = Users_Record_Model::getCurrentUserModel();
-
-		if (!is_array($with_crmids))
-			$with_crmids = Array($with_crmids);
-		foreach ($with_crmids as $with_crmid) {
-			if ($with_module == 'Products') {
-				$adb->insert('vtiger_seproductsrel', [
+		if (!is_array($withCrmids))
+			$withCrmids = [$withCrmids];
+		foreach ($withCrmids as $withCrmid) {
+			if ($withModule === 'Products') {
+				App\Db::getInstance()->createCommand()->insert('vtiger_seproductsrel', [
 					'crmid' => $crmid,
-					'productid' => $with_crmid,
+					'productid' => $withCrmid,
 					'setype' => $module,
-					'rel_created_user' => $currentUser->getId(),
+					'rel_created_user' => App\User::getCurrentUserId(),
 					'rel_created_time' => date('Y-m-d H:i:s')
-				]);
-			} elseif ($with_module == 'Campaigns') {
-				$adb->insert('vtiger_campaign_records', [
-					'campaignid' => $with_crmid,
+				])->execute();
+			} elseif ($withModule === 'Campaigns') {
+				App\Db::getInstance()->createCommand()->insert('vtiger_campaign_records', [
+					'campaignid' => $withCrmid,
 					'crmid' => $crmid,
 					'campaignrelstatusid' => 0
-				]);
+				])->execute();
 			} else {
-				parent::save_related_module($module, $crmid, $with_module, $with_crmid, $relatedName);
+				parent::save_related_module($module, $crmid, $withModule, $withCrmid, $relatedName);
 			}
 		}
 	}
