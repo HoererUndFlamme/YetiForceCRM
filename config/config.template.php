@@ -33,7 +33,7 @@ define('CALLTO', '#10');
 $PORTAL_URL = 'https://huf.company';
 
 // helpdesk support email id and support name (Example: 'support@yetiforce.com' and 'yetiforce support')
-$HELPDESK_SUPPORT_NAME = 'Hörer und Flamme';
+$HELPDESK_SUPPORT_NAME = 'administration@hoerer-flamme.com';
 $HELPDESK_SUPPORT_EMAIL_REPLY = 'ralph.kretzschmar@hoerer-flamme.com';
 $HELPDESK_SUPPORT_EMAIL_ID = 'administration@hoerer-flamme.com';
 
