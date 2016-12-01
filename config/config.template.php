@@ -27,13 +27,15 @@ $WORLD_CLOCK_DISPLAY = 'true';
 $CALCULATOR_DISPLAY = 'true';
 $CHAT_DISPLAY = 'true';
 $USE_RTE = 'true';
+define('CALLTO', '#10');
 
 // url for customer portal (Example: https://portal.yetiforce.com/)
-$PORTAL_URL = 'https://portal.yetiforce.com';
+$PORTAL_URL = 'https://huf.company';
 
 // helpdesk support email id and support name (Example: 'support@yetiforce.com' and 'yetiforce support')
-$HELPDESK_SUPPORT_NAME = 'your-support name';
-$HELPDESK_SUPPORT_EMAIL_REPLY = '';
+$HELPDESK_SUPPORT_NAME = 'Hörer und Flamme';
+$HELPDESK_SUPPORT_EMAIL_REPLY = 'ralph.kretzschmar@hoerer-flamme.com';
+$HELPDESK_SUPPORT_EMAIL_ID = 'administration@hoerer-flamme.com';
 
 /* database configuration
   db_server
@@ -136,7 +138,7 @@ $disable_stats_tracking = false;
 $application_unique_key = '_VT_APP_UNIQKEY_';
 
 // trim descriptions, titles in listviews to this value
-$listview_max_textlength = 40;
+$listview_max_textlength = 60;
 
 // Maximum time limit for PHP script execution (in seconds)
 $php_max_execution_time = 0;
@@ -180,7 +182,7 @@ $systemMode = 'prod';
 $forceSSL = false;
 
 // Maximum number of records in a mass edition
-$listMaxEntriesMassEdit = 500;
+$listMaxEntriesMassEdit = 5000;
 
 // Enable closing of mondal window by clicking on the background
 $backgroundClosingModal = true;
