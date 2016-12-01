@@ -1,7 +1,7 @@
 <?php
 /* * *******************************************************************************
  * The contents of this file are subject to the SugarCRM Public License Version 1.1.2
- * ("License"); You may not use this file except in compliance with the
+ * ("License"); You may not use this file except in compliance with the 
  * License. You may obtain a copy of the License at http://www.sugarcrm.com/SPL
  * Software distributed under the License is distributed on an  "AS IS"  basis,
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
@@ -20,14 +20,13 @@ AppConfig::iniSet('memory_limit', '512M');
 // lifetime of session
 AppConfig::iniSet('session.gc_maxlifetime', '21600');
 
-// show or hide calendar, world clock, calculator, chat and CKEditor
-// Do NOT remove the quotes if you set these to false!
+// show or hide calendar, world clock, calculator, chat and CKEditor 
+// Do NOT remove the quotes if you set these to false! 
 $CALENDAR_DISPLAY = 'true';
 $WORLD_CLOCK_DISPLAY = 'true';
 $CALCULATOR_DISPLAY = 'true';
 $CHAT_DISPLAY = 'true';
 $USE_RTE = 'true';
-define('CALLTO', '#10');
 
 // url for customer portal (Example: https://portal.yetiforce.com/)
 $PORTAL_URL = 'https://portal.yetiforce.com';
@@ -53,8 +52,6 @@ $dbconfig['db_name'] = '_DBC_NAME_';
 $dbconfig['db_type'] = '_DBC_TYPE_';
 $dbconfig['db_status'] = '_DB_STAT_';
 
-// TODO: test if port is empty
-// TODO: set db_hostname dependending on db_type
 $dbconfig['db_hostname'] = $dbconfig['db_server'] . ':' . $dbconfig['db_port'];
 
 $host_name = $dbconfig['db_hostname'];
@@ -71,19 +68,16 @@ $tmp_dir = '_VT_TMPDIR_';
 // import_dir default value prepended by cache_dir = import/
 $import_dir = 'cache/import/';
 
-// upload_dir default
+// upload_dir default 
 $upload_dir = 'cache/upload/';
-
-// disable send files using KCFinder
-$upload_disabled = false;
 
 // maximum file size for uploaded files in bytes also used when uploading import files
 // upload_maxsize default value = 3000000
 $upload_maxsize = 52428800;  // 50MB
 // flag to allow export functionality
-// 'all' to allow anyone to use exports
-// 'admin' to only allow admins to export
-// 'none' to block exports completely
+// 'all' to allow anyone to use exports 
+// 'admin' to only allow admins to export 
+// 'none' to block exports completely 
 // allow_exports default value = all
 $allow_exports = 'all';
 
@@ -183,21 +177,21 @@ $davHistoryDir = 'storage/FilesHistory';
 $systemMode = 'prod';
 
 // Force site access to always occur under SSL (https) for selected areas. You will not be able to access selected areas under non-ssl. Note, you must have SSL enabled on your server to utilise this option.
-$forceSSL = FALSE;
+$forceSSL = false;
 
 // Maximum number of records in a mass edition
 $listMaxEntriesMassEdit = 500;
 
 // Enable closing of mondal window by clicking on the background
-$backgroundClosingModal = TRUE;
+$backgroundClosingModal = true;
 
 // Enable CSRF-protection
-$csrfProtection = TRUE;
+$csrfProtection = true;
 
 // Enable encrypt backup, Support from PHP 5.6.x
 $encryptBackup = false;
 
-// Is sending emails active.
+// Is sending emails active. 
 $isActiveSendingMails = true;
 
 // Should the task in cron be unblocked if the script execution time was exceeded
@@ -212,7 +206,7 @@ $langInLoginView = false;
 // System's lyout selection in the login window (true/false).
 $layoutInLoginView = false;
 
-// Set the default layout
+// Set the default layout 
 $defaultLayout = 'basic';
 
 // Logo is visible in footer.

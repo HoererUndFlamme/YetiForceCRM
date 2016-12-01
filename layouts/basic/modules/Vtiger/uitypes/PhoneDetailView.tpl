@@ -29,7 +29,6 @@
 			' data-trigger="manual"><i class="glyphicon glyphicon-user"></i></a>
 		{/if}
 	{else}
-		<a class="urlField cursorPointer" href="callto:{$smarty.const.CALLTO}{$FIELD_VALUE}" >Callto: </a>
 		{$FIELD_MODEL->getDisplayValue($FIELD_MODEL->get('fieldvalue'), $RECORD->getId(), $RECORD)}
 	{/if}
 {/if}
